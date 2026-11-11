@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/rpg_system.dart';
 
 void main() {
   group('Valence Core RPG & Classifier Tests', () {
