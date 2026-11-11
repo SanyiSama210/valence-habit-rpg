@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_application_1/theme.dart';
 import 'package:flutter_application_1/rpg_system.dart';
 import 'package:flutter_application_1/add_task_screen.dart';
+import 'package:flutter_application_1/health_service.dart';
 
 final FlutterLocalNotificationsPlugin notificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -44,58 +45,42 @@ void main() async {
   if (androidImpl != null) {
     const AndroidNotificationChannel questChannel = AndroidNotificationChannel(
       'quest_reminders_v2',
-      'Quest Reminders',
-      description: 'Advance alarms for classes and workout routines',
+      'System Directives',
+      description: 'Notifications for daily operational directives',
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
     );
-    const AndroidNotificationChannel streakChannel = AndroidNotificationChannel(
-      'streak_channel_v2',
-      'Streak Protection',
-      description: 'Reminders to protect your streak before midnight',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-    );
-    const AndroidNotificationChannel penaltyChannel = AndroidNotificationChannel(
-      'quest_penalties',
-      'Quest Penalties',
-      description: 'Notifications for missed quest deadlines',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-    );
-    const AndroidNotificationChannel surgeChannel = AndroidNotificationChannel(
-      'surge_quests',
-      'Surge Micro-Quests',
-      description: 'Random productivity prompts popping up in your free time',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-    );
-
     await androidImpl.createNotificationChannel(questChannel);
-    await androidImpl.createNotificationChannel(streakChannel);
-    await androidImpl.createNotificationChannel(penaltyChannel);
-    await androidImpl.createNotificationChannel(surgeChannel);
     await androidImpl.requestNotificationsPermission();
     await androidImpl.requestExactAlarmsPermission();
   }
 
-  runApp(const MaterialApp(
-    title: 'Valence',
-    home: HabitApp(),
+  runApp(MaterialApp(
+    title: 'Valence System',
+    theme: ThemeData.dark().copyWith(
+      scaffoldBackgroundColor: SystemTheme.background,
+      canvasColor: SystemTheme.background,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: SystemTheme.surface,
+        elevation: 0,
+      ),
+    ),
+    home: const HabitApp(),
     debugShowCheckedModeBanner: false,
   ));
 }
 
-// ============================================================================
-// MAIN APPLICATION STATE (4 TABS)
-// ============================================================================
-
 class HabitApp extends StatefulWidget {
   const HabitApp({super.key});
+
+  static final JsonList themePalette = [
+    {'name': 'Cyan Glow', 'color': SystemTheme.cyan},
+    {'name': 'Mana Blue', 'color': SystemTheme.electricBlue},
+    {'name': 'Shadow Violet', 'color': SystemTheme.shadowViolet},
+    {'name': 'Monarch Gold', 'color': SystemTheme.monarchGold},
+    {'name': 'Danger Red', 'color': SystemTheme.dangerRed},
+  ];
 
   @override
   State<HabitApp> createState() => _HabitAppState();
@@ -122,7 +107,7 @@ class _HabitAppState extends State<HabitApp> {
   String sleepTier = 'well_rested';
   String sleepLoggedDate = '';
 
-  int _uiColorOverride = 0xFF58CC02;
+  int _uiColorOverride = 0xFF00E5FF;
 
   int _selectedTabIndex = 0;
   String _selectedCategoryFilter = 'All';
@@ -139,21 +124,12 @@ class _HabitAppState extends State<HabitApp> {
   final Set<String> _expandedSkillCategories = {'Combat', 'Intellect', 'Conditioning'};
 
   JsonMap? _activeSurgeQuest;
-  bool _surgeGambleArmed = false;
 
   static const JsonList microQuestPool = [
-    {'title': '25 Push-ups Reset', 'category': 'Fitness', 'primary': 'STR', 'secondary': 'VIT', 'baseRr': 25, 'desc': 'Quick upper-body activation away from your desk.'},
-    {'title': '15-Minute Flash Recall', 'category': 'Academic', 'primary': 'INT', 'secondary': 'PER', 'baseRr': 30, 'desc': 'Review key seminar notes or formulas without distractions.'},
-    {'title': '3-Min Shadowboxing Footwork', 'category': 'Fitness', 'primary': 'AGI', 'secondary': 'PER', 'baseRr': 25, 'desc': 'Light angles, pivots, and guard checks.'},
-    {'title': 'Desk Reset & 500ml Water', 'category': 'General', 'primary': 'VIT', 'secondary': 'PER', 'baseRr': 20, 'desc': 'Hydrate and clear your workspace.'},
-  ];
-
-  static final JsonList themePalette = [
-    {'name': 'Feather Green', 'color': ValencePalette.green},
-    {'name': 'Macaw Blue', 'color': ValencePalette.blue},
-    {'name': 'Crown Gold', 'color': ValencePalette.gold},
-    {'name': 'Streak Orange', 'color': ValencePalette.orange},
-    {'name': 'Beetle Purple', 'color': ValencePalette.purple},
+    {'title': '25 Push-ups Calibration', 'category': 'Fitness', 'primary': 'STR', 'secondary': 'VIT', 'baseRr': 25, 'desc': 'Physical calibration sequence.'},
+    {'title': '15-Minute Recall Focus', 'category': 'Academic', 'primary': 'INT', 'secondary': 'PER', 'baseRr': 30, 'desc': 'Neural scan & memory consolidation.'},
+    {'title': 'Shadow Striking Angles', 'category': 'Fitness', 'primary': 'AGI', 'secondary': 'PER', 'baseRr': 25, 'desc': 'Motor coordination & footwork calibration.'},
+    {'title': 'Hydration & Posture Reset', 'category': 'General', 'primary': 'VIT', 'secondary': 'PER', 'baseRr': 20, 'desc': 'System fluid maintenance.'},
   ];
 
   @override
@@ -164,7 +140,7 @@ class _HabitAppState extends State<HabitApp> {
     _startApp();
   }
 
-  Color get accentColor => Color(_uiColorOverride == -1 ? 0xFF58CC02 : _uiColorOverride);
+  Color get accentColor => Color(_uiColorOverride == -1 ? 0xFF00E5FF : _uiColorOverride);
 
   double get sleepRrMultiplier {
     if (sleepTier == 'fatigue') return 0.80;
@@ -172,16 +148,24 @@ class _HabitAppState extends State<HabitApp> {
     return 1.00;
   }
 
-  String get sleepShortLabel {
-    if (sleepTier == 'fatigue') return '${sleepHours.toStringAsFixed(1)}h';
-    if (sleepTier == 'well_rested') return '${sleepHours.toStringAsFixed(1)}h';
-    return '${sleepHours.toStringAsFixed(1)}h';
+  String get sleepTierLabel {
+    if (sleepTier == 'fatigue') return 'Fatigue (-20%)';
+    if (sleepTier == 'well_rested') return 'Restored (+15%)';
+    return 'Nominal (1.0x)';
   }
 
+  String _formatSleepTime(double decimalHours) {
+    final int h = decimalHours.floor();
+    final int m = ((decimalHours - h) * 60).round();
+    return "$h:${m.toString().padLeft(2, '0')}";
+  }
+
+  String get sleepShortLabel => _formatSleepTime(sleepHours);
+
   Color get sleepTierColor {
-    if (sleepTier == 'fatigue') return ValencePalette.red;
-    if (sleepTier == 'well_rested') return ValencePalette.green;
-    return ValencePalette.blue;
+    if (sleepTier == 'fatigue') return SystemTheme.dangerRed;
+    if (sleepTier == 'well_rested') return SystemTheme.cyan;
+    return SystemTheme.electricBlue;
   }
 
   String _classifySleepHours(double hours) {
@@ -227,7 +211,7 @@ class _HabitAppState extends State<HabitApp> {
             total_rr INTEGER DEFAULT 0,
             highest_rank_level INTEGER DEFAULT 0,
             last_evaluated_date TEXT,
-            ui_color_override INTEGER DEFAULT 4283993090,
+            ui_color_override INTEGER DEFAULT 4278248959,
             emblem_color_override INTEGER DEFAULT -1,
             str_xp INTEGER DEFAULT 0,
             vit_xp INTEGER DEFAULT 0,
@@ -258,7 +242,7 @@ class _HabitAppState extends State<HabitApp> {
             title TEXT NOT NULL,
             category TEXT NOT NULL,
             description TEXT DEFAULT '',
-            color_value INTEGER DEFAULT 4283993090,
+            color_value INTEGER DEFAULT 4278248959,
             start_hour INTEGER NOT NULL,
             start_minute INTEGER NOT NULL,
             end_hour INTEGER NOT NULL,
@@ -312,7 +296,7 @@ class _HabitAppState extends State<HabitApp> {
           'total_rr': 0,
           'highest_rank_level': 0,
           'last_evaluated_date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          'ui_color_override': 0xFF58CC02,
+          'ui_color_override': 0xFF00E5FF,
           'emblem_color_override': -1,
           'str_xp': 0,
           'vit_xp': 0,
@@ -327,68 +311,6 @@ class _HabitAppState extends State<HabitApp> {
 
         await _seedInitialSkills(db);
       },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        Future<void> addColumnSafely(String table, String colDef) async {
-          try {
-            await db.execute('ALTER TABLE $table ADD COLUMN $colDef');
-          } catch (_) {}
-        }
-
-        await addColumnSafely('user_profile', 'ui_color_override INTEGER DEFAULT 4283993090');
-        await addColumnSafely('user_profile', 'emblem_color_override INTEGER DEFAULT -1');
-        await addColumnSafely('user_profile', 'shield_charges INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'str_xp INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'vit_xp INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'int_xp INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'per_xp INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'agi_xp INTEGER DEFAULT 0');
-        await addColumnSafely('user_profile', 'sleep_hours REAL DEFAULT 7.5');
-        await addColumnSafely('user_profile', 'sleep_tier TEXT DEFAULT "well_rested"');
-        await addColumnSafely('user_profile', 'sleep_logged_date TEXT DEFAULT ""');
-        await addColumnSafely('user_profile', 'custom_categories TEXT DEFAULT "Combat,Intellect,Conditioning"');
-
-        await addColumnSafely('tasks', 'recurrence_type TEXT DEFAULT "weekly"');
-        await addColumnSafely('tasks', 'is_boss INTEGER DEFAULT 0');
-        await addColumnSafely('tasks', 'boss_stake INTEGER DEFAULT 400');
-        await addColumnSafely('tasks', 'prep_stacks INTEGER DEFAULT 0');
-        await addColumnSafely('tasks', 'primary_stat TEXT DEFAULT "INT"');
-        await addColumnSafely('tasks', 'secondary_stat TEXT DEFAULT "PER"');
-        await addColumnSafely('tasks', 'skill_id INTEGER DEFAULT -1');
-
-        try {
-          await db.execute('''
-            CREATE TABLE IF NOT EXISTS skills (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT NOT NULL,
-              category TEXT NOT NULL,
-              primary_stat TEXT NOT NULL,
-              secondary_stat TEXT NOT NULL,
-              mastery_xp INTEGER DEFAULT 0
-            )
-          ''');
-          final countRes = await db.rawQuery('SELECT COUNT(*) as c FROM skills');
-          if ((countRes.first['c'] as int? ?? 0) == 0) {
-            await _seedInitialSkills(db);
-          }
-        } catch (_) {}
-
-        try {
-          await db.execute('''
-            CREATE TABLE IF NOT EXISTS surge_quests (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              title TEXT NOT NULL,
-              category TEXT NOT NULL,
-              description TEXT DEFAULT '',
-              base_rr INTEGER NOT NULL,
-              start_epoch INTEGER NOT NULL,
-              expire_epoch INTEGER NOT NULL,
-              status TEXT DEFAULT 'pending',
-              is_gamble INTEGER DEFAULT 0
-            )
-          ''');
-        } catch (_) {}
-        await addColumnSafely('surge_quests', 'is_gamble INTEGER DEFAULT 0');
-      },
     );
     return _database!;
   }
@@ -401,6 +323,12 @@ class _HabitAppState extends State<HabitApp> {
   }
 
   String _formatDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+
+  String _formatMinutes(int totalMinutes) {
+    final int h = totalMinutes ~/ 60;
+    final int m = totalMinutes % 60;
+    return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
+  }
 
   double _getPerfectStreakMultiplier(int pStreak) {
     if (pStreak >= 30) return 2.0;
@@ -469,6 +397,28 @@ class _HabitAppState extends State<HabitApp> {
       return targetStr == startDateStr;
     }
 
+    if (recurrenceType.startsWith('custom:')) {
+      if (startDateStr == null || startDateStr.isEmpty) return false;
+      try {
+        final startDate = DateFormat('yyyy-MM-dd').parse(startDateStr);
+        final parts = recurrenceType.replaceFirst('custom:', '').split('_');
+        final int interval = int.tryParse(parts[0]) ?? 1;
+        final String unit = parts.length > 1 ? parts[1] : 'days';
+
+        if (unit == 'days') {
+          final diff = targetDate.difference(startDate).inDays;
+          return diff >= 0 && (diff % interval == 0);
+        } else if (unit == 'weeks') {
+          final diff = targetDate.difference(startDate).inDays;
+          return diff >= 0 && ((diff ~/ 7) % interval == 0) && (diff % 7 == 0);
+        } else if (unit == 'months') {
+          final monthDiff = (targetDate.year - startDate.year) * 12 + targetDate.month - startDate.month;
+          return monthDiff >= 0 && (monthDiff % interval == 0) && (targetDate.day == startDate.day);
+        }
+      } catch (_) {}
+      return false;
+    }
+
     if (recurrenceType == 'monthly') {
       if (startDateStr != null && startDateStr.isNotEmpty) {
         try {
@@ -508,32 +458,22 @@ class _HabitAppState extends State<HabitApp> {
 
   Future<void> _openGoogleMapsDirections(double lat, double lng) async {
     HapticFeedback.selectionClick();
-    final Uri navUri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=walking',
-    );
+    final Uri navUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=walking');
     try {
       await launchUrl(navUri, mode: LaunchMode.externalApplication);
     } catch (_) {
       final Uri geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
       if (await canLaunchUrl(geoUri)) {
         await launchUrl(geoUri);
-      } else {
-        _showMessage("Navigation Unavailable", "Could not open Google Maps on this device.");
       }
     }
   }
 
   Future<void> _startApp() async {
     final db = await database;
-    try {
-      await db.execute('ALTER TABLE user_profile ADD COLUMN custom_categories TEXT DEFAULT "Combat,Intellect,Conditioning"');
-    } catch (_) {}
-
     final todayStr = _formatDate(_today);
 
     final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
-    bool completedToday = false;
-
     final taskRes = await db.query('tasks');
     _allTasks = JsonList.from(taskRes);
 
@@ -542,7 +482,6 @@ class _HabitAppState extends State<HabitApp> {
 
     if (profileRes.isNotEmpty) {
       final profile = profileRes.first;
-      final lastDateStr = profile['last_completed_date'] as String?;
       final lastEvalStr = (profile['last_evaluated_date'] as String?) ?? todayStr;
       int streak = (profile['current_streak'] as int?) ?? 0;
       int maxStreak = (profile['highest_streak'] as int?) ?? streak;
@@ -563,23 +502,16 @@ class _HabitAppState extends State<HabitApp> {
       sleepLoggedDate = (profile['sleep_logged_date'] as String?) ?? '';
 
       final String savedCatsStr = (profile['custom_categories'] as String?) ?? 'Combat,Intellect,Conditioning';
-      final Set<String> catSet = savedCatsStr
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toSet();
+      final Set<String> catSet = savedCatsStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
       for (final sk in _skills) {
         final c = (sk['category'] as String?)?.trim() ?? '';
         if (c.isNotEmpty) catSet.add(c);
       }
-      if (catSet.isEmpty) {
-        catSet.addAll(['Combat', 'Intellect', 'Conditioning']);
-      }
       _skillCategories = catSet.toList();
       _expandedSkillCategories.addAll(_skillCategories);
 
-      final int savedUiColor = (profile['ui_color_override'] as int?) ?? 0xFF58CC02;
-      _uiColorOverride = savedUiColor == -1 ? 0xFF58CC02 : savedUiColor;
+      final int savedUiColor = (profile['ui_color_override'] as int?) ?? 0xFF00E5FF;
+      _uiColorOverride = savedUiColor == -1 ? 0xFF00E5FF : savedUiColor;
 
       final todayDate = DateFormat('yyyy-MM-dd').parse(todayStr);
       final lastEvalDate = DateFormat('yyyy-MM-dd').parse(lastEvalStr);
@@ -604,18 +536,10 @@ class _HabitAppState extends State<HabitApp> {
         if (missedTasks > 0) {
           if (shields > 0) {
             shields -= 1;
-            _showMessage(
-              "Streak Freeze Used! 🛡️",
-              "A Rest Day Shield absorbed $missedTasks missed quest(s) from previous days.\nYour $streak-day streak and RR were protected!",
-            );
           } else {
-            rr = max(0, rr - totalPenalty);
+            rr = max<int>(0, rr - totalPenalty);
             streak = 0;
             pStreak = 0;
-            _showMessage(
-              "Missed Quests Penalty",
-              "You missed $missedTasks quest(s) on previous active days.\n-$totalPenalty RR deducted and streaks reset.",
-            );
           }
         }
 
@@ -628,10 +552,6 @@ class _HabitAppState extends State<HabitApp> {
         }, where: 'id = ?', whereArgs: [1]);
       }
 
-      if (lastDateStr != null && todayDate.difference(DateFormat('yyyy-MM-dd').parse(lastDateStr)).inDays == 0) {
-        completedToday = true;
-      }
-
       currentStreak = streak;
       highestStreak = max(maxStreak, streak);
       perfectStreak = pStreak;
@@ -639,12 +559,6 @@ class _HabitAppState extends State<HabitApp> {
       shieldCharges = shields;
       totalRr = rr;
       highestRankIdx = max(maxRank, SystemRanks.getRankIndex(rr));
-
-      await db.update('user_profile', {
-        'highest_streak': highestStreak,
-        'highest_perfect_streak': highestPerfectStreak,
-        'highest_rank_level': highestRankIdx,
-      }, where: 'id = ?', whereArgs: [1]);
     }
 
     _filterTasks();
@@ -653,71 +567,21 @@ class _HabitAppState extends State<HabitApp> {
     await _rescheduleTaskNotifications();
     await _ensureDailySurgeQuestScheduled();
 
-    if (completedToday) {
-      await notificationsPlugin.cancel(id: 1001);
-    } else {
-      _scheduleEveningAlert();
+    if (sleepLoggedDate != todayStr) {
+      await _autoSyncSleepFromWatch(silent: true);
     }
   }
 
-  Future<void> _addCustomSkillCategory(String newCategory) async {
-    final clean = newCategory.trim().replaceAll(',', '');
-    if (clean.isEmpty) return;
-    if (!_skillCategories.any((c) => c.toLowerCase() == clean.toLowerCase())) {
-      setState(() {
-        _skillCategories.add(clean);
-        _expandedSkillCategories.add(clean);
-      });
-      final db = await database;
-      await db.update(
-        'user_profile',
-        {'custom_categories': _skillCategories.join(',')},
-        where: 'id = ?',
-        whereArgs: [1],
-      );
-    }
-  }
+  Future<void> _autoSyncSleepFromWatch({bool silent = false}) async {
+    final granted = await HealthService.requestSleepPermissions();
+    if (!granted) return;
 
-  void _showAddCategoryDialog() {
-    HapticFeedback.selectionClick();
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ValencePalette.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: ValencePalette.borderLip, width: 2)),
-        title: const Text("New Skill Category", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          decoration: InputDecoration(
-            hintText: "e.g. Languages, Music, Career",
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-            filled: true,
-            fillColor: ValencePalette.bgRecessed,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
-          ),
-          TactileButton(
-            label: "ADD CATEGORY",
-            color: accentColor,
-            onPressed: () async {
-              final name = ctrl.text.trim();
-              if (name.isNotEmpty) {
-                await _addCustomSkillCategory(name);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-          ),
-        ],
-      ),
-    );
+    final double? watchHours = await HealthService.fetchLastNightSleepDuration();
+    if (watchHours != null) {
+      final todayStr = _formatDate(_today);
+      final bool alreadyClaimedToday = sleepLoggedDate == todayStr;
+      await _applySleepRecovery(watchHours, alreadyClaimedToday);
+    }
   }
 
   void _filterTasks() {
@@ -776,48 +640,53 @@ class _HabitAppState extends State<HabitApp> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final String previewTier = _classifySleepHours(tempHours);
             final Color previewColor = previewTier == 'fatigue'
-                ? ValencePalette.red
+                ? SystemTheme.dangerRed
                 : previewTier == 'well_rested'
-                    ? ValencePalette.green
-                    : ValencePalette.blue;
-            final String previewTitle = previewTier == 'fatigue'
-                ? 'Fatigue Debuff (-20% RR · 0 XP)'
-                : previewTier == 'well_rested'
-                    ? 'Well Rested! (+15% RR · +8 VIT & +6 PER)'
-                    : 'Standard Recovery (1.0x RR · +3 VIT & +2 PER)';
+                    ? SystemTheme.cyan
+                    : SystemTheme.electricBlue;
 
             return Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 32),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Sleep Recovery Tracker 🌙",
-                    style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          "RECOVERY CALIBRATION",
+                          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+                        ),
+                      ),
+                      SystemButton(
+                        label: "SYNC",
+                        icon: Icons.sync,
+                        color: SystemTheme.cyan,
+                        fontSize: 10,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await _autoSyncSleepFromWatch(silent: false);
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "1–4.9h: Fatigue (-20%) · 7–9.5h: Well Rested (+15%) · Other: Standard",
-                    style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Last Night's Sleep", style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                      const Text("RECORDED TIME", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w600)),
                       Text(
-                        "${tempHours.toStringAsFixed(1)} hrs",
-                        style: TextStyle(color: previewColor, fontSize: 20, fontWeight: FontWeight.w900),
+                        _formatSleepTime(tempHours),
+                        style: TextStyle(color: previewColor, fontSize: 18, fontWeight: FontWeight.w900),
                       ),
                     ],
                   ),
@@ -827,30 +696,17 @@ class _HabitAppState extends State<HabitApp> {
                     max: 12.0,
                     divisions: 22,
                     activeColor: previewColor,
-                    inactiveColor: ValencePalette.bgRecessed,
+                    inactiveColor: SystemTheme.surfaceElevated,
                     onChanged: (val) => setModalState(() => tempHours = val),
                   ),
-                  TactileCard(
-                    bgColor: previewColor.withValues(alpha: 0.14),
-                    borderColor: previewColor.withValues(alpha: 0.55),
-                    padding: const EdgeInsets.all(12),
-                    borderRadius: 14,
-                    child: Center(
-                      child: Text(
-                        previewTitle,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: previewColor, fontWeight: FontWeight.w900, fontSize: 13),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    child: TactileButton(
-                      label: alreadyClaimedToday ? "UPDATE SLEEP STATUS" : "CLAIM SLEEP RECOVERY",
+                    child: SystemButton(
+                      label: alreadyClaimedToday ? "OVERRIDE VALUE" : "CONFIRM RECOVERY",
                       color: previewColor,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      fontSize: 14,
+                      fontSize: 12,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       onPressed: () async {
                         Navigator.pop(ctx);
                         await _applySleepRecovery(tempHours, alreadyClaimedToday);
@@ -871,18 +727,14 @@ class _HabitAppState extends State<HabitApp> {
     final todayStr = _formatDate(_today);
     final tier = _classifySleepHours(hours);
 
-    int vitGain = 0;
-    int perGain = 0;
     if (!alreadyClaimedToday) {
       if (tier == 'well_rested') {
-        vitGain = 8;
-        perGain = 6;
+        await _grantAttributeXp('VIT', 8);
+        await _grantAttributeXp('PER', 6);
       } else if (tier == 'standard') {
-        vitGain = 3;
-        perGain = 2;
+        await _grantAttributeXp('VIT', 3);
+        await _grantAttributeXp('PER', 2);
       }
-      await _grantAttributeXp('VIT', vitGain);
-      await _grantAttributeXp('PER', perGain);
     }
 
     await db.update('user_profile', {
@@ -904,51 +756,17 @@ class _HabitAppState extends State<HabitApp> {
     final db = await database;
     final nowEpoch = DateTime.now().millisecondsSinceEpoch;
 
-    final expiredGambles = await db.query(
-      'surge_quests',
-      where: 'status = ? AND is_gamble = 1 AND expire_epoch <= ?',
-      whereArgs: ['accepted_gamble', nowEpoch],
-    );
-
-    if (expiredGambles.isNotEmpty) {
-      final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
-      int rr = profileRes.isNotEmpty ? ((profileRes.first['total_rr'] as int?) ?? 0) : 0;
-      int totalLoss = 0;
-
-      for (final g in expiredGambles) {
-        final int loss = (g['base_rr'] as int) * 2;
-        totalLoss += loss;
-        await db.update('surge_quests', {'status': 'failed_gamble'}, where: 'id = ?', whereArgs: [g['id']]);
-      }
-
-      rr = max(0, rr - totalLoss);
-      await db.update('user_profile', {'total_rr': rr}, where: 'id = ?', whereArgs: [1]);
-      totalRr = rr;
-      _showMessage(
-        "Double-or-Nothing Failed!",
-        "The 30-minute timer expired on your 2x wager.\n-$totalLoss RR deducted.",
-      );
-    }
-
     final res = await db.query(
       'surge_quests',
-      where: '(status = ? OR status = ?) AND expire_epoch > ?',
-      whereArgs: ['pending', 'accepted_gamble', nowEpoch],
+      where: 'status = ? AND expire_epoch > ?',
+      whereArgs: ['pending', nowEpoch],
       orderBy: 'expire_epoch ASC',
       limit: 1,
     );
 
-    if (res.isNotEmpty) {
-      setState(() {
-        _activeSurgeQuest = res.first;
-        _surgeGambleArmed = (res.first['is_gamble'] as int? ?? 0) == 1;
-      });
-    } else {
-      setState(() {
-        _activeSurgeQuest = null;
-        _surgeGambleArmed = false;
-      });
-    }
+    setState(() {
+      _activeSurgeQuest = res.isNotEmpty ? res.first : null;
+    });
   }
 
   Future<void> _ensureDailySurgeQuestScheduled() async {
@@ -990,7 +808,7 @@ class _HabitAppState extends State<HabitApp> {
     final rand = Random();
     final chosenSlot = freeSlots[rand.nextInt(freeSlots.length)];
     final int slotDuration = chosenSlot['end']! - chosenSlot['start']!;
-    final int offsetMins = rand.nextInt(max(1, slotDuration - 35));
+    final int offsetMins = rand.nextInt(max<int>(1, slotDuration - 35));
     final int triggerMinute = chosenSlot['start']! + offsetMins;
 
     final triggerTime = DateTime(now.year, now.month, now.day, triggerMinute ~/ 60, triggerMinute % 60);
@@ -998,7 +816,7 @@ class _HabitAppState extends State<HabitApp> {
 
     final template = microQuestPool[rand.nextInt(microQuestPool.length)];
 
-    final questId = await db.insert('surge_quests', {
+    await db.insert('surge_quests', {
       'title': template['title'],
       'category': template['category'],
       'description': template['desc'],
@@ -1008,104 +826,34 @@ class _HabitAppState extends State<HabitApp> {
       'status': 'pending',
       'is_gamble': 0,
     });
-
-    const AndroidNotificationDetails surgeDetails = AndroidNotificationDetails(
-      'surge_quests',
-      'Surge Micro-Quests',
-      channelDescription: 'Random productivity prompts popping up in your free time',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
-
-    await notificationsPlugin.zonedSchedule(
-      id: 99000 + questId,
-      title: '⚡ Bonus Surge Quest!',
-      body: '${template['title']} (+${template['baseRr']} RR). 30 min window!',
-      scheduledDate: tz.TZDateTime.from(triggerTime, tz.local),
-      notificationDetails: const NotificationDetails(android: surgeDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
-  }
-
-  Future<void> _lockInTarnishedGamble(JsonMap surge) async {
-    HapticFeedback.heavyImpact();
-    final db = await database;
-    await db.update(
-      'surge_quests',
-      {'status': 'accepted_gamble', 'is_gamble': 1},
-      where: 'id = ?',
-      whereArgs: [surge['id']],
-    );
-    await _checkActiveSurgeQuest();
   }
 
   Future<void> _completeSurgeQuest(JsonMap surge) async {
     HapticFeedback.heavyImpact();
     final db = await database;
-    final double mult = _getPerfectStreakMultiplier(perfectStreak) * sleepRrMultiplier;
-    final bool isGamble = (surge['is_gamble'] as int? ?? 0) == 1 || _surgeGambleArmed;
-    final int base = (surge['base_rr'] as int) * (isGamble ? 2 : 1);
-    final int earnedRr = (base * mult).round();
+    final int base = surge['base_rr'] as int;
 
     await db.update('surge_quests', {'status': 'completed'}, where: 'id = ?', whereArgs: [surge['id']]);
-    await _grantAttributeXp('VIT', isGamble ? 6 : 3);
+    await _grantAttributeXp('VIT', 4);
 
     final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
     final profile = profileRes.first;
     int oldRr = (profile['total_rr'] as int?) ?? 0;
     int maxRank = (profile['highest_rank_level'] as int?) ?? 0;
 
-    final newRr = oldRr + earnedRr;
+    final newRr = oldRr + base;
     final oldRankIdx = SystemRanks.getRankIndex(oldRr);
     final newRankIdx = SystemRanks.getRankIndex(newRr);
     maxRank = max(maxRank, newRankIdx);
 
-    await db.update('user_profile', {
-      'total_rr': newRr,
-      'highest_rank_level': maxRank,
-    }, where: 'id = ?', whereArgs: [1]);
+    await db.update('user_profile', {'total_rr': newRr, 'highest_rank_level': maxRank}, where: 'id = ?', whereArgs: [1]);
 
-    setState(() {
-      _activeSurgeQuest = null;
-      _surgeGambleArmed = false;
-    });
+    setState(() => _activeSurgeQuest = null);
 
     if (newRankIdx > oldRankIdx) {
       _triggerRankAscensionCeremony(oldRankIdx, newRankIdx);
-    } else {
-      _showMessage(
-        isGamble ? "Double-or-Nothing Won! 🔥" : "Bonus Quest Complete! ⚡",
-        "+$earnedRr RR & +${isGamble ? 6 : 3} VIT XP earned!",
-      );
     }
 
-    _startApp();
-  }
-
-  Future<void> _dismissSurgeQuest(JsonMap surge) async {
-    HapticFeedback.lightImpact();
-    final db = await database;
-    final bool isLockedGamble = surge['status'] == 'accepted_gamble';
-
-    if (isLockedGamble) {
-      final int penalty = (surge['base_rr'] as int) * 2;
-      final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
-      final int oldRr = (profileRes.first['total_rr'] as int?) ?? 0;
-      final int newRr = max(0, oldRr - penalty);
-
-      await db.update('user_profile', {'total_rr': newRr}, where: 'id = ?', whereArgs: [1]);
-      await db.update('surge_quests', {'status': 'failed_gamble'}, where: 'id = ?', whereArgs: [surge['id']]);
-      _showMessage("Wager Forfeited", "You backed out of an active 2x wager.\n-$penalty RR deducted.");
-    } else {
-      await db.update('surge_quests', {'status': 'dismissed'}, where: 'id = ?', whereArgs: [surge['id']]);
-    }
-
-    setState(() {
-      _activeSurgeQuest = null;
-      _surgeGambleArmed = false;
-    });
     _startApp();
   }
 
@@ -1126,49 +874,22 @@ class _HabitAppState extends State<HabitApp> {
       final isCompleted = task['last_completed_date'] == todayStr;
       final penaltyAppliedDate = (task['penalty_applied_date'] as String?) ?? '';
 
-      final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int)
-          .add(const Duration(minutes: 15));
+      final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int).add(const Duration(minutes: 15));
 
       if (now.isAfter(endDt) && !isCompleted && penaltyAppliedDate != todayStr) {
         penalizedCount++;
-        final penalty = _getStandardPenalty(task);
-        rr = max(0, rr - penalty);
+        final int penalty = _getStandardPenalty(task);
+        rr = max<int>(0, rr - penalty);
 
         await db.update('tasks', {'penalty_applied_date': todayStr}, where: 'id = ?', whereArgs: [taskId]);
-
-        const AndroidNotificationDetails penaltyDetails = AndroidNotificationDetails(
-          'quest_penalties',
-          'Quest Penalties',
-          channelDescription: 'Notifications for missed quest deadlines',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          enableVibration: true,
-        );
-        await notificationsPlugin.show(
-          id: 5000 + taskId,
-          title: 'Quest Missed ⚠️',
-          body: '"${task['title']}" window closed. -$penalty RR deducted.',
-          notificationDetails: const NotificationDetails(android: penaltyDetails),
-        );
       }
     }
 
     if (penalizedCount > 0) {
-      await db.update('user_profile', {
-        'total_rr': rr,
-        'perfect_streak': 0,
-      }, where: 'id = ?', whereArgs: [1]);
-
+      await db.update('user_profile', {'total_rr': rr, 'perfect_streak': 0}, where: 'id = ?', whereArgs: [1]);
       perfectStreak = 0;
       totalRr = rr;
       setState(() {});
-    }
-  }
-
-  Future<void> _cancelTaskNotifications(int taskId) async {
-    for (int i = 0; i <= 99; i++) {
-      await notificationsPlugin.cancel(id: taskId * 100 + i);
     }
   }
 
@@ -1181,110 +902,11 @@ class _HabitAppState extends State<HabitApp> {
         }
       }
     } catch (_) {}
-
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'quest_reminders_v2',
-      'Quest Reminders',
-      channelDescription: 'Advance alarms for classes and workout routines',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      visibility: NotificationVisibility.public,
-    );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
-
-    final now = DateTime.now();
-
-    for (final task in _todayTasks) {
-      final int taskId = task['id'] as int;
-      final int notifyEnabled = (task['notify_enabled'] as int?) ?? 1;
-      if (notifyEnabled == 0) continue;
-
-      final String leadsStr = (task['notify_leads'] as String?) ?? '15';
-      final leadMinutesList = leadsStr
-          .split(',')
-          .map((s) => int.tryParse(s.trim()))
-          .whereType<int>()
-          .toList();
-
-      final startDt = DateTime(now.year, now.month, now.day, task['start_hour'] as int, task['start_minute'] as int);
-
-      for (int i = 0; i < leadMinutesList.length; i++) {
-        final leadMin = leadMinutesList[i];
-        final alertTime = startDt.subtract(Duration(minutes: leadMin));
-
-        if (alertTime.isAfter(now)) {
-          final int notificationId = taskId * 100 + i;
-          await notificationsPlugin.zonedSchedule(
-            id: notificationId,
-            title: '${task['title']} in $leadMin min',
-            body: '${task['category']} starts at ${task['start_hour'].toString().padLeft(2, '0')}:${task['start_minute'].toString().padLeft(2, '0')}.',
-            scheduledDate: tz.TZDateTime.from(alertTime, tz.local),
-            notificationDetails: notificationDetails,
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          );
-        }
-      }
-
-      final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int)
-          .add(const Duration(minutes: 15));
-
-      final bool isCompleted = task['last_completed_date'] == _formatDate(_today);
-
-      if (endDt.isAfter(now) && !isCompleted) {
-        final penalty = _getStandardPenalty(task);
-        const AndroidNotificationDetails penaltyDetails = AndroidNotificationDetails(
-          'quest_penalties',
-          'Quest Penalties',
-          channelDescription: 'Notifications for missed quest deadlines',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          enableVibration: true,
-        );
-        final int penaltyNotifId = taskId * 100 + 99;
-        await notificationsPlugin.zonedSchedule(
-          id: penaltyNotifId,
-          title: 'Quest Missed ⚠️',
-          body: '"${task['title']}" expired. -$penalty RR deducted.',
-          scheduledDate: tz.TZDateTime.from(endDt, tz.local),
-          notificationDetails: const NotificationDetails(android: penaltyDetails),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
-      }
-    }
-  }
-
-  Future<void> _scheduleEveningAlert() async {
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, 20, 30);
-    if (now.isAfter(scheduledDate)) return;
-
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'streak_channel_v2',
-      'Streak Protection',
-      channelDescription: 'Reminders to protect your streak before midnight',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
-
-    await notificationsPlugin.zonedSchedule(
-      id: 1001,
-      title: 'Keep your streak alive! 🔥',
-      body: 'You still have uncompleted quests today. Check in before midnight!',
-      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails: notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
   }
 
   void _triggerRankAscensionCeremony(int oldRankIdx, int newRankIdx) {
     HapticFeedback.vibrate();
-    final newRankName = SystemRanks.hunterLadder[newRankIdx]['name'] as String;
+    final newRankName = SystemRanks.rankLadder[newRankIdx]['name'] as String;
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
@@ -1292,8 +914,115 @@ class _HabitAppState extends State<HabitApp> {
       pageBuilder: (dialogCtx, anim1, anim2) {
         return RankAscensionDialog(
           newRankName: newRankName,
-          accentColor: accentColor,
           onClaimed: () => Navigator.pop(dialogCtx),
+        );
+      },
+    );
+  }
+
+  void _openRankDetailsScreen() {
+    HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RankHierarchyScreen(
+          currentRr: totalRr,
+          accentColor: accentColor,
+        ),
+      ),
+    );
+  }
+
+  // Point 11: Granular repeating quest deletion and editing
+  void _openQuestOptions(JsonMap task, [DateTime? forDate]) {
+    final targetDate = forDate ?? _today;
+    final String recurrenceType = (task['recurrence_type'] as String?) ?? 'weekly';
+    final bool isRecurring = recurrenceType != 'once';
+    final String dateStr = _formatDate(targetDate);
+    final String dateLabel = dateStr == _formatDate(_today) ? "Today" : DateFormat('MMM d').format(targetDate);
+
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(task['title'] as String, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.edit_outlined, color: SystemTheme.cyan),
+                title: const Text("Edit Directive", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                subtitle: const Text("Modify time, location, or parameters", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final res = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddTaskScreen(
+                        initialDate: targetDate,
+                        skills: _skills,
+                        accentColor: accentColor,
+                        existingTask: task,
+                      ),
+                    ),
+                  );
+                  if (res == true) _startApp();
+                },
+              ),
+              const Divider(color: SystemTheme.border),
+              if (isRecurring) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.today, color: SystemTheme.monarchGold),
+                  title: Text("Skip for $dateLabel Only", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  subtitle: const Text("Keep all upcoming and future days active", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final db = await database;
+                    final currentExcluded = (task['excluded_dates'] as String?) ?? '';
+                    final list = currentExcluded.isEmpty ? <String>[] : currentExcluded.split(',');
+                    if (!list.contains(dateStr)) list.add(dateStr);
+                    await db.update('tasks', {'excluded_dates': list.join(',')}, where: 'id = ?', whereArgs: [task['id']]);
+                    _startApp();
+                  },
+                ),
+                const Divider(color: SystemTheme.border),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_busy, color: SystemTheme.dangerRed),
+                  title: const Text("End Future Directives", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  subtitle: const Text("Cut recurrence timeline right before this day", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final db = await database;
+                    final yesterdayStr = _formatDate(targetDate.subtract(const Duration(days: 1)));
+                    await db.update('tasks', {'recurrence_end_date': yesterdayStr}, where: 'id = ?', whereArgs: [task['id']]);
+                    _startApp();
+                  },
+                ),
+                const Divider(color: SystemTheme.border),
+              ],
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_forever, color: SystemTheme.dangerRed),
+                title: const Text("Purge Completely", style: TextStyle(color: SystemTheme.dangerRed, fontWeight: FontWeight.w700)),
+                subtitle: const Text("Erase this directive and all history from memory", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final db = await database;
+                  await db.delete('tasks', where: 'id = ?', whereArgs: [task['id']]);
+                  _startApp();
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1301,14 +1030,15 @@ class _HabitAppState extends State<HabitApp> {
 
   Future<void> _attemptCheckIn(JsonMap task) async {
     final now = DateTime.now();
-    final startTime = DateTime(now.year, now.month, now.day, task['start_hour'] as int, task['start_minute'] as int)
-        .subtract(const Duration(minutes: 15));
-    final endTime = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int)
-        .add(const Duration(minutes: 15));
+    final startTime = DateTime(now.year, now.month, now.day, task['start_hour'] as int, task['start_minute'] as int).subtract(const Duration(minutes: 15));
+    final endTime = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int).add(const Duration(minutes: 15));
 
     if (now.isBefore(startTime) || now.isAfter(endTime)) {
       HapticFeedback.heavyImpact();
-      _showMessage("Check-In Locked", "Window opens 15m before start and closes 15m after end.");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Window locked. Available ±15m of scheduled time.')),
+      );
       return;
     }
 
@@ -1317,10 +1047,7 @@ class _HabitAppState extends State<HabitApp> {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showMessage("GPS Permission Needed", "Enable location access to verify attendance.");
-          return;
-        }
+        if (permission == LocationPermission.denied) return;
       }
 
       Position userPos = await Geolocator.getCurrentPosition(
@@ -1337,9 +1064,9 @@ class _HabitAppState extends State<HabitApp> {
       final double allowedRadius = (task['radius_meters'] as num).toDouble();
       if (distanceMeters > allowedRadius) {
         HapticFeedback.heavyImpact();
-        _showMessage(
-          "Outside Geofence 📍",
-          "You are ${distanceMeters.toStringAsFixed(0)}m away (must be within ${allowedRadius.toInt()}m).",
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('GPS distance mismatch: ${distanceMeters.toStringAsFixed(0)}m (Max: ${allowedRadius.toInt()}m)')),
         );
         return;
       }
@@ -1364,94 +1091,42 @@ class _HabitAppState extends State<HabitApp> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 32),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "👑 BOSS CHALLENGE",
-                    style: TextStyle(color: ValencePalette.gold, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.8),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: ValencePalette.gold.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      "🛡️ $stacks/5 Prep Buffs",
-                      style: const TextStyle(color: ValencePalette.gold, fontSize: 11, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                task['title'] as String,
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
-              ),
+              const Text("BOSS GATE CHALLENGE", style: TextStyle(color: SystemTheme.shadowViolet, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              const SizedBox(height: 8),
+              Text(task['title'] as String, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
-              TactileCard(
-                bgColor: ValencePalette.green.withValues(alpha: 0.12),
-                borderColor: ValencePalette.green,
-                lipColor: ValencePalette.greenLip,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _finalizeBossEncounter(task, true, victoryGain);
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.emoji_events, color: ValencePalette.green, size: 26),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Succeeded / Passed!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
-                          Text("Claim full stake + Prep bonus & Stat XP", style: TextStyle(color: Colors.white60, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Text("+$victoryGain RR", style: const TextStyle(color: ValencePalette.green, fontWeight: FontWeight.w900, fontSize: 15)),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: SystemButton(
+                  label: "VICTORY (+$victoryGain RR)",
+                  color: SystemTheme.cyan,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _finalizeBossEncounter(task, true, victoryGain);
+                  },
                 ),
               ),
-              const SizedBox(height: 12),
-              TactileCard(
-                bgColor: ValencePalette.red.withValues(alpha: 0.12),
-                borderColor: ValencePalette.red,
-                lipColor: ValencePalette.redLip,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _finalizeBossEncounter(task, false, defeatLoss);
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.cancel, color: ValencePalette.red, size: 26),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Failed / Defeated", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
-                          Text("Prep-mitigated RR penalty deducted", style: TextStyle(color: Colors.white60, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Text("-$defeatLoss RR", style: const TextStyle(color: ValencePalette.red, fontWeight: FontWeight.w900, fontSize: 15)),
-                  ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: SystemButton(
+                  label: "DEFEAT (-$defeatLoss RR)",
+                  color: SystemTheme.dangerRed,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _finalizeBossEncounter(task, false, defeatLoss);
+                  },
                 ),
               ),
             ],
@@ -1465,114 +1140,30 @@ class _HabitAppState extends State<HabitApp> {
     final db = await database;
     final todayStr = _formatDate(_today);
 
-    await db.update(
-      'tasks',
-      {'last_completed_date': todayStr, 'is_completed': 1, 'prep_stacks': 0},
-      where: 'id = ?',
-      whereArgs: [task['id']],
-    );
-
-    await notificationsPlugin.cancel(id: (task['id'] as int) * 100 + 99);
+    await db.update('tasks', {'last_completed_date': todayStr, 'is_completed': 1, 'prep_stacks': 0}, where: 'id = ?', whereArgs: [task['id']]);
 
     final String pStat = (task['primary_stat'] as String?) ?? 'INT';
     final String sStat = (task['secondary_stat'] as String?) ?? 'PER';
-    final int skillId = (task['skill_id'] as int?) ?? -1;
 
     if (succeeded) {
       await _grantAttributeXp(pStat, 16);
       await _grantAttributeXp(sStat, 8);
-      final skill = _findSkillById(skillId);
-      if (skill != null) {
-        final int newXp = ((skill['mastery_xp'] as int?) ?? 0) + 50;
-        await db.update('skills', {'mastery_xp': newXp}, where: 'id = ?', whereArgs: [skillId]);
-      }
     }
 
     final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
     final profile = profileRes.first;
-    final lastDateStr = profile['last_completed_date'] as String?;
-    final lastPerfectDateStr = profile['last_perfect_date'] as String?;
-    int streak = (profile['current_streak'] as int?) ?? 0;
-    int maxStreak = (profile['highest_streak'] as int?) ?? streak;
-    int pStreak = (profile['perfect_streak'] as int?) ?? 0;
-    int maxPStreak = (profile['highest_perfect_streak'] as int?) ?? pStreak;
-    int shields = (profile['shield_charges'] as int?) ?? 0;
     int oldRr = (profile['total_rr'] as int?) ?? 0;
     int maxRank = (profile['highest_rank_level'] as int?) ?? 0;
 
-    if (lastDateStr == null) {
-      streak = 1;
-    } else {
-      final todayParsed = DateFormat('yyyy-MM-dd').parse(todayStr);
-      final lastDateParsed = DateFormat('yyyy-MM-dd').parse(lastDateStr);
-      final diff = todayParsed.difference(lastDateParsed).inDays;
-      if (diff == 1) {
-        streak += 1;
-      } else if (diff > 1) {
-        streak = 1;
-      }
-    }
-    maxStreak = max(maxStreak, streak);
-
-    final allTodayRes = await db.query('tasks');
-    final activeToday = allTodayRes.where((t) => _isTaskActiveOnDate(t, _today)).toList();
-    final bool allDone = activeToday.every((t) => t['last_completed_date'] == todayStr);
-
-    bool forgedShield = false;
-    if (allDone && lastPerfectDateStr != todayStr) {
-      if (lastPerfectDateStr == null) {
-        pStreak = 1;
-      } else {
-        final todayParsed = DateFormat('yyyy-MM-dd').parse(todayStr);
-        final lastPDateParsed = DateFormat('yyyy-MM-dd').parse(lastPerfectDateStr);
-        final pDiff = todayParsed.difference(lastPDateParsed).inDays;
-        if (pDiff == 1) {
-          pStreak += 1;
-        } else if (pDiff > 1) {
-          pStreak = 1;
-        }
-      }
-      maxPStreak = max(maxPStreak, pStreak);
-
-      if (pStreak > 0 && pStreak % 7 == 0 && shields < 3) {
-        shields += 1;
-        forgedShield = true;
-      }
-    }
-
-    final int newRr = succeeded ? (oldRr + rrDelta) : max(0, oldRr - rrDelta);
+    final int newRr = succeeded ? (oldRr + rrDelta) : max<int>(0, oldRr - rrDelta);
     final int oldRankIdx = SystemRanks.getRankIndex(oldRr);
     final int newRankIdx = SystemRanks.getRankIndex(newRr);
     maxRank = max(maxRank, newRankIdx);
 
-    await db.update('user_profile', {
-      'current_streak': streak,
-      'highest_streak': maxStreak,
-      'perfect_streak': pStreak,
-      'highest_perfect_streak': maxPStreak,
-      'shield_charges': shields,
-      'last_completed_date': todayStr,
-      'last_perfect_date': allDone ? todayStr : lastPerfectDateStr,
-      'total_rr': newRr,
-      'highest_rank_level': maxRank,
-    }, where: 'id = ?', whereArgs: [1]);
+    await db.update('user_profile', {'total_rr': newRr, 'highest_rank_level': maxRank}, where: 'id = ?', whereArgs: [1]);
 
-    await notificationsPlugin.cancel(id: 1001);
-
-    if (succeeded && newRankIdx > oldRankIdx) {
+    if (newRankIdx > oldRankIdx) {
       _triggerRankAscensionCeremony(oldRankIdx, newRankIdx);
-    } else if (succeeded) {
-      HapticFeedback.heavyImpact();
-      _showMessage(
-        "Boss Conquered! 👑",
-        "+$rrDelta RR · +16 $pStat & +8 $sStat XP${forgedShield ? '\n🛡️ +1 Streak Freeze Shield forged!' : ''}",
-      );
-    } else {
-      HapticFeedback.vibrate();
-      _showMessage(
-        "Boss Defeat",
-        "-$rrDelta RR deducted.",
-      );
     }
 
     _startApp();
@@ -1590,75 +1181,33 @@ class _HabitAppState extends State<HabitApp> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 32),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "HOW WAS THE SESSION?",
-                    style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.8),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: ValencePalette.gold.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      "⚡ ${mult.toStringAsFixed(2)}x Boost",
-                      style: const TextStyle(color: ValencePalette.gold, fontSize: 11, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
-              ),
+              const Text("LOG OPERATIONAL INTENSITY", style: TextStyle(color: SystemTheme.cyan, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
               const SizedBox(height: 6),
-              Text(
-                task['title'] as String,
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 16),
-              _buildIntensityTile(
-                "Easy / Light",
-                "+4 $pStat, +2 $sStat${skill != null ? ' · +15 Skill XP' : ''}",
-                (_getBaseReward(category, 'Low') * mult).round(),
-                ValencePalette.blue,
-                () {
-                  Navigator.pop(ctx);
-                  _finalizeCheckIn(task, 'Low');
-                },
-              ),
-              const SizedBox(height: 10),
-              _buildIntensityTile(
-                "Solid / Standard",
-                "+8 $pStat, +4 $sStat${skill != null ? ' · +25 Skill XP' : ''}",
-                (_getBaseReward(category, 'Medium') * mult).round(),
-                ValencePalette.green,
-                () {
-                  Navigator.pop(ctx);
-                  _finalizeCheckIn(task, 'Medium');
-                },
-              ),
-              const SizedBox(height: 10),
-              _buildIntensityTile(
-                "All-Out / Intense",
-                "+14 $pStat, +7 $sStat${skill != null ? ' · +40 Skill XP' : ''}",
-                (_getBaseReward(category, 'High') * mult).round(),
-                ValencePalette.orange,
-                () {
-                  Navigator.pop(ctx);
-                  _finalizeCheckIn(task, 'High');
-                },
-              ),
+              Text(task['title'] as String, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 14),
+              _buildEffortOption("LIGHT", 4, 2, (_getBaseReward(category, 'Low') * mult).round(), pStat, sStat, SystemTheme.cyan, () {
+                Navigator.pop(ctx);
+                _finalizeCheckIn(task, 'Low');
+              }),
+              const SizedBox(height: 8),
+              _buildEffortOption("OPTIMAL", 8, 4, (_getBaseReward(category, 'Medium') * mult).round(), pStat, sStat, SystemTheme.electricBlue, () {
+                Navigator.pop(ctx);
+                _finalizeCheckIn(task, 'Medium');
+              }),
+              const SizedBox(height: 8),
+              _buildEffortOption("PEAK", 14, 7, (_getBaseReward(category, 'High') * mult).round(), pStat, sStat, SystemTheme.monarchGold, () {
+                Navigator.pop(ctx);
+                _finalizeCheckIn(task, 'High');
+              }),
             ],
           ),
         );
@@ -1666,35 +1215,30 @@ class _HabitAppState extends State<HabitApp> {
     );
   }
 
-  Widget _buildIntensityTile(String title, String sub, int rrGain, Color color, VoidCallback onTap) {
-    return TactileCard(
-      bgColor: ValencePalette.bgRecessed,
-      borderColor: color.withValues(alpha: 0.55),
-      lipColor: ValencePalette.darkenLip(color),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      borderRadius: 16,
+  Widget _buildEffortOption(String label, int pXp, int sXp, int rr, String pStat, String sStat, Color col, VoidCallback onTap) {
+    return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: SystemTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: col.withValues(alpha: 0.5), width: 1.0),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
-                const SizedBox(height: 2),
-                Text(sub, style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(label, style: TextStyle(color: col, fontWeight: FontWeight.w900, fontSize: 13)),
+                Text("+$pXp $pStat / +$sXp $sStat", style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11)),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text("+$rrGain RR", style: const TextStyle(color: Color(0xFF0F191E), fontWeight: FontWeight.w900, fontSize: 13)),
-          ),
-        ],
+            Text("+$rr RR", style: TextStyle(color: col, fontWeight: FontWeight.w900, fontSize: 14)),
+          ],
+        ),
       ),
     );
   }
@@ -1716,108 +1260,20 @@ class _HabitAppState extends State<HabitApp> {
     final double mult = _getPerfectStreakMultiplier(perfectStreak) * sleepRrMultiplier * (1.0 + skillBonus);
     final int earnedRr = (_getBaseReward(category, difficulty) * mult).round();
 
-    await db.update(
-      'tasks',
-      {'last_completed_date': todayStr, 'is_completed': 1},
-      where: 'id = ?',
-      whereArgs: [task['id']],
-    );
-
-    await notificationsPlugin.cancel(id: (task['id'] as int) * 100 + 99);
-
+    await db.update('tasks', {'last_completed_date': todayStr, 'is_completed': 1}, where: 'id = ?', whereArgs: [task['id']]);
     await _grantAttributeXp(pStat, pXp);
     await _grantAttributeXp(sStat, sXp);
 
-    String skillRankUpNotice = '';
     if (skill != null) {
       final int oldSkillXp = (skill['mastery_xp'] as int?) ?? 0;
-      final int newSkillXp = oldSkillXp + skillXpGain;
-      final String oldLetter = SystemRanks.getSkillRankLetter(oldSkillXp);
-      final String newLetter = SystemRanks.getSkillRankLetter(newSkillXp);
-      await db.update('skills', {'mastery_xp': newSkillXp}, where: 'id = ?', whereArgs: [skillId]);
-      if (newLetter != oldLetter) {
-        skillRankUpNotice = '\n🎉 ${skill['name']} leveled up to $newLetter-Rank!';
-      } else {
-        skillRankUpNotice = '\n+$skillXpGain XP → ${skill['name']}';
-      }
-    }
-
-    int buffedBosses = 0;
-    if (category == 'Academic' || category == 'Fitness') {
-      final todayOnly = DateTime(_today.year, _today.month, _today.day);
-      for (final other in _allTasks) {
-        if ((other['is_boss'] as int? ?? 0) == 1 && other['last_completed_date'] != todayStr) {
-          final startStr = other['recurrence_start_date'] as String?;
-          if (startStr != null && startStr.isNotEmpty) {
-            try {
-              final bossDate = DateFormat('yyyy-MM-dd').parse(startStr);
-              final daysUntil = bossDate.difference(todayOnly).inDays;
-              if (daysUntil >= 0 && daysUntil <= 7) {
-                final int curStacks = (other['prep_stacks'] as int?) ?? 0;
-                if (curStacks < 5) {
-                  await db.update('tasks', {'prep_stacks': curStacks + 1}, where: 'id = ?', whereArgs: [other['id']]);
-                  buffedBosses++;
-                }
-              }
-            } catch (_) {}
-          }
-        }
-      }
+      await db.update('skills', {'mastery_xp': oldSkillXp + skillXpGain}, where: 'id = ?', whereArgs: [skillId]);
     }
 
     final profileRes = await db.query('user_profile', where: 'id = ?', whereArgs: [1]);
     final profile = profileRes.first;
-    final lastDateStr = profile['last_completed_date'] as String?;
-    final lastPerfectDateStr = profile['last_perfect_date'] as String?;
-    int streak = (profile['current_streak'] as int?) ?? 0;
-    int maxStreak = (profile['highest_streak'] as int?) ?? streak;
-    int pStreak = (profile['perfect_streak'] as int?) ?? 0;
-    int maxPStreak = (profile['highest_perfect_streak'] as int?) ?? pStreak;
-    int shields = (profile['shield_charges'] as int?) ?? 0;
     int oldRr = (profile['total_rr'] as int?) ?? 0;
     int maxRank = (profile['highest_rank_level'] as int?) ?? 0;
-
-    if (lastDateStr == null) {
-      streak = 1;
-    } else {
-      final todayParsed = DateFormat('yyyy-MM-dd').parse(todayStr);
-      final lastDateParsed = DateFormat('yyyy-MM-dd').parse(lastDateStr);
-      final diff = todayParsed.difference(lastDateParsed).inDays;
-
-      if (diff == 1) {
-        streak += 1;
-      } else if (diff > 1) {
-        streak = 1;
-      }
-    }
-    maxStreak = max(maxStreak, streak);
-
-    final allTodayRes = await db.query('tasks');
-    final activeToday = allTodayRes.where((t) => _isTaskActiveOnDate(t, _today)).toList();
-    final bool allDone = activeToday.every((t) => t['last_completed_date'] == todayStr);
-
-    bool forgedShield = false;
-    if (allDone && lastPerfectDateStr != todayStr) {
-      if (lastPerfectDateStr == null) {
-        pStreak = 1;
-      } else {
-        final todayParsed = DateFormat('yyyy-MM-dd').parse(todayStr);
-        final lastPDateParsed = DateFormat('yyyy-MM-dd').parse(lastPerfectDateStr);
-        final pDiff = todayParsed.difference(lastPDateParsed).inDays;
-
-        if (pDiff == 1) {
-          pStreak += 1;
-        } else if (pDiff > 1) {
-          pStreak = 1;
-        }
-      }
-      maxPStreak = max(maxPStreak, pStreak);
-
-      if (pStreak > 0 && pStreak % 7 == 0 && shields < 3) {
-        shields += 1;
-        forgedShield = true;
-      }
-    }
+    int streak = (profile['current_streak'] as int?) ?? 0;
 
     final newRr = oldRr + earnedRr;
     final oldRankIdx = SystemRanks.getRankIndex(oldRr);
@@ -1825,266 +1281,17 @@ class _HabitAppState extends State<HabitApp> {
     maxRank = max(maxRank, newRankIdx);
 
     await db.update('user_profile', {
-      'current_streak': streak,
-      'highest_streak': maxStreak,
-      'perfect_streak': pStreak,
-      'highest_perfect_streak': maxPStreak,
-      'shield_charges': shields,
-      'last_completed_date': todayStr,
-      'last_perfect_date': allDone ? todayStr : lastPerfectDateStr,
+      'current_streak': streak + 1,
       'total_rr': newRr,
       'highest_rank_level': maxRank,
+      'last_completed_date': todayStr,
     }, where: 'id = ?', whereArgs: [1]);
-
-    await notificationsPlugin.cancel(id: 1001);
 
     if (newRankIdx > oldRankIdx) {
       _triggerRankAscensionCeremony(oldRankIdx, newRankIdx);
-    } else {
-      HapticFeedback.lightImpact();
-      String extra = skillRankUpNotice;
-      if (buffedBosses > 0) extra += '\n⚔️ +1 Boss Prep Buff gained!';
-      if (forgedShield) extra += '\n🛡️ +1 Streak Freeze Shield forged!';
-      _showMessage("Quest Complete! 🎉", "+$earnedRr RR · +$pXp $pStat, +$sXp $sStat XP$extra");
     }
 
     _startApp();
-  }
-
-  void _promptDeleteTask(JsonMap task, [DateTime? forDate]) {
-    final targetDate = forDate ?? _today;
-    HapticFeedback.lightImpact();
-    final int taskId = task['id'] as int;
-    final String title = task['title'] as String;
-    final String recurrenceType = (task['recurrence_type'] as String?) ?? 'weekly';
-    final bool isRecurring = recurrenceType != 'once';
-    final String dateLabel = _formatDate(targetDate) == _formatDate(_today)
-        ? "today"
-        : DateFormat('MMM d').format(targetDate);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Remove \"$title\"?",
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 14),
-            if (isRecurring) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.today, color: accentColor, size: 24),
-                title: Text("Skip for $dateLabel only", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
-                subtitle: const Text("Keeps future occurrences on your schedule", style: TextStyle(color: Colors.white54, fontSize: 12)),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await _excludeTaskForDate(taskId, targetDate);
-                },
-              ),
-              const Divider(color: ValencePalette.borderLip),
-            ],
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delete_forever, color: ValencePalette.red, size: 24),
-              title: Text(isRecurring ? "Delete all occurrences" : "Delete quest", style: const TextStyle(color: ValencePalette.red, fontWeight: FontWeight.w800, fontSize: 15)),
-              subtitle: const Text("Permanently removes this quest", style: TextStyle(color: Colors.white54, fontSize: 12)),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _deleteTaskPermanently(taskId);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _excludeTaskForDate(int id, DateTime date) async {
-    await _cancelTaskNotifications(id);
-    final db = await database;
-    final dateStr = _formatDate(date);
-    final res = await db.query('tasks', columns: ['excluded_dates'], where: 'id = ?', whereArgs: [id]);
-    if (res.isNotEmpty) {
-      final currentExcluded = (res.first['excluded_dates'] as String?) ?? '';
-      final list = currentExcluded.isEmpty ? <String>[] : currentExcluded.split(',');
-      if (!list.contains(dateStr)) {
-        list.add(dateStr);
-      }
-      await db.update('tasks', {'excluded_dates': list.join(',')}, where: 'id = ?', whereArgs: [id]);
-    }
-    _startApp();
-  }
-
-  Future<void> _deleteTaskPermanently(int id) async {
-    await _cancelTaskNotifications(id);
-    final db = await database;
-    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
-    _startApp();
-  }
-
-  void _showMessage(String title, String body) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ValencePalette.bgCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: ValencePalette.borderLip, width: 2),
-        ),
-        title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
-        content: Text(body, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4, fontWeight: FontWeight.w600)),
-        actions: [
-          TactileButton(
-            label: "GOT IT",
-            color: accentColor,
-            onPressed: () => Navigator.pop(ctx),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTaskDetailSheet(JsonMap task, [DateTime? forDate]) {
-    HapticFeedback.selectionClick();
-    final String description = (task['description'] as String?) ?? '';
-    final String startRange = (task['recurrence_start_date'] as String?) ?? 'Any';
-    final String endRange = (task['recurrence_end_date'] as String?) ?? 'Ongoing';
-    final String recurrenceType = (task['recurrence_type'] as String?) ?? 'weekly';
-    final int requireGps = (task['require_gps'] as int?) ?? 1;
-    final int isBoss = (task['is_boss'] as int?) ?? 0;
-    final int bossStake = (task['boss_stake'] as int?) ?? 400;
-    final int prepStacks = _getEffectiveBossPrepStacks(task);
-    final double targetLat = (task['target_lat'] as num?)?.toDouble() ?? 0.0;
-    final double targetLng = (task['target_lng'] as num?)?.toDouble() ?? 0.0;
-    final String pStat = (task['primary_stat'] as String?) ?? 'INT';
-    final String sStat = (task['secondary_stat'] as String?) ?? 'PER';
-    final int skillId = (task['skill_id'] as int?) ?? -1;
-    final skill = _findSkillById(skillId);
-    final int penalty = _getStandardPenalty(task);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 32),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: (isBoss == 1 ? ValencePalette.gold : accentColor).withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      isBoss == 1 ? "👑 BOSS · ${task['category']}" : "${task['category']} · +$pStat / +$sStat",
-                      style: TextStyle(color: isBoss == 1 ? ValencePalette.gold : accentColor, fontWeight: FontWeight.w900, fontSize: 12),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    "${task['start_hour'].toString().padLeft(2, '0')}:${task['start_minute'].toString().padLeft(2, '0')} – ${task['end_hour'].toString().padLeft(2, '0')}:${task['end_minute'].toString().padLeft(2, '0')}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w800),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                task['title'] as String,
-                style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                skill != null
-                    ? "Linked Skill: ${skill['name']} (${SystemRanks.getSkillRankLetter((skill['mastery_xp'] as int?) ?? 0)}-Rank)"
-                    : "Stat-Only Quest (Unlinked)",
-                style: TextStyle(color: skill != null ? ValencePalette.green : Colors.white54, fontSize: 13, fontWeight: FontWeight.w800),
-              ),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: ValencePalette.bgRecessed,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(description, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-              ],
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Schedule: ${recurrenceType.toUpperCase()} ($startRange → $endRange)", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600)),
-                  Text(
-                    isBoss == 1 ? "Stake: ±$bossStake RR ($prepStacks/5)" : "Miss: -$penalty RR",
-                    style: const TextStyle(color: ValencePalette.red, fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(requireGps == 1 ? Icons.location_on : Icons.public, color: ValencePalette.blue, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      requireGps == 1 ? "GPS Geofence (${(task['radius_meters'] as num).toInt()}m)" : "Check in from anywhere",
-                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  if (requireGps == 1 && (targetLat != 0.0 || targetLng != 0.0))
-                    TactileButton(
-                      label: "DIRECTIONS",
-                      icon: Icons.directions,
-                      color: ValencePalette.blue,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      fontSize: 11,
-                      onPressed: () => _openGoogleMapsDirections(targetLat, targetLng),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: ValencePalette.red,
-                    side: const BorderSide(color: ValencePalette.red, width: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _promptDeleteTask(task, forDate);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text("SKIP OR DELETE QUEST", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _openAddTaskScreen() async {
@@ -2099,9 +1306,207 @@ class _HabitAppState extends State<HabitApp> {
         ),
       ),
     );
-    if (result == true) {
-      _startApp();
+    if (result == true) _startApp();
+  }
+
+  Future<void> _addCustomSkillCategory(String newCategory) async {
+    final clean = newCategory.trim().replaceAll(',', '');
+    if (clean.isEmpty) return;
+    if (!_skillCategories.any((c) => c.toLowerCase() == clean.toLowerCase())) {
+      setState(() {
+        _skillCategories.add(clean);
+        _expandedSkillCategories.add(clean);
+      });
+      final db = await database;
+      await db.update(
+        'user_profile',
+        {'custom_categories': _skillCategories.join(',')},
+        where: 'id = ?',
+        whereArgs: [1],
+      );
     }
+  }
+
+  Future<void> _deleteSkillCategory(String category) async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _skillCategories.remove(category);
+      _expandedSkillCategories.remove(category);
+    });
+    final db = await database;
+    await db.delete('skills', where: 'category = ?', whereArgs: [category]);
+    await db.update(
+      'user_profile',
+      {'custom_categories': _skillCategories.join(',')},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    _startApp();
+  }
+
+  void _showAddCategoryDialog() {
+    HapticFeedback.selectionClick();
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SystemTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: SystemTheme.border)),
+        title: const Text("NEW SKILL CATEGORY", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: "e.g. Boxing, Languages, Career",
+            hintStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 13),
+            filled: true,
+            fillColor: SystemTheme.surfaceElevated,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white38)),
+          ),
+          SystemButton(
+            label: "ADD CATEGORY",
+            color: accentColor,
+            onPressed: () async {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty) {
+                await _addCustomSkillCategory(name);
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditSkillModal(JsonMap skill) {
+    HapticFeedback.selectionClick();
+    final nameCtrl = TextEditingController(text: skill['name'] as String);
+    final xpCtrl = TextEditingController(text: (skill['mastery_xp'] as int).toString());
+    String selectedCat = skill['category'] as String;
+    String pStat = skill['primary_stat'] as String;
+    String sStat = skill['secondary_stat'] as String;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("EDIT SKILL", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: SystemTheme.dangerRed, size: 22),
+                        onPressed: () async {
+                          final db = await database;
+                          await db.delete('skills', where: 'id = ?', whereArgs: [skill['id']]);
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          _startApp();
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    decoration: InputDecoration(
+                      labelText: "Skill Name",
+                      labelStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 12),
+                      filled: true,
+                      fillColor: SystemTheme.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: xpCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    decoration: InputDecoration(
+                      labelText: "Mastery XP",
+                      labelStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 12),
+                      filled: true,
+                      fillColor: SystemTheme.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: pStat,
+                          dropdownColor: SystemTheme.surface,
+                          isExpanded: true,
+                          style: TextStyle(color: accentColor, fontWeight: FontWeight.w900),
+                          items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text("1°: $s"))).toList(),
+                          onChanged: (v) => setModalState(() => pStat = v!),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: sStat,
+                          dropdownColor: SystemTheme.surface,
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                          items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text("2°: $s"))).toList(),
+                          onChanged: (v) => setModalState(() => sStat = v!),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SystemButton(
+                      label: "SAVE SKILL CHANGES",
+                      color: accentColor,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      onPressed: () async {
+                        final name = nameCtrl.text.trim();
+                        final int xp = int.tryParse(xpCtrl.text.trim()) ?? (skill['mastery_xp'] as int);
+                        if (name.isEmpty) return;
+                        final db = await database;
+                        await db.update('skills', {
+                          'name': name,
+                          'category': selectedCat,
+                          'primary_stat': pStat,
+                          'secondary_stat': sStat,
+                          'mastery_xp': xp,
+                        }, where: 'id = ?', whereArgs: [skill['id']]);
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        _startApp();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showCreateSkillModal() {
@@ -2116,41 +1521,38 @@ class _HabitAppState extends State<HabitApp> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ValencePalette.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: SystemTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Padding(
-              padding: EdgeInsets.fromLTRB(22, 22, 22, MediaQuery.of(context).viewInsets.bottom + 28),
+              padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Add New Skill 🎯", style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 14),
+                  const Text("OBTAIN SKILL", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: nameCtrl,
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                     decoration: InputDecoration(
-                      labelText: "Skill Name (e.g. MMA, BJJ, Accounting)",
-                      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                      labelText: "Skill Name (e.g. Kickboxing, Accounting)",
+                      labelStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 12),
                       filled: true,
-                      fillColor: ValencePalette.bgRecessed,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      fillColor: SystemTheme.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Category", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w800)),
-                      TextButton.icon(
+                      const Text("CATEGORY", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w800)),
+                      TextButton(
                         onPressed: () => setModalState(() => addingNewCat = !addingNewCat),
-                        icon: Icon(addingNewCat ? Icons.close : Icons.add, size: 16, color: accentColor),
-                        label: Text(addingNewCat ? "Pick Existing" : "New Category", style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w800)),
+                        child: Text(addingNewCat ? "Existing" : "+ New", style: TextStyle(color: accentColor, fontSize: 11)),
                       ),
                     ],
                   ),
@@ -2159,16 +1561,16 @@ class _HabitAppState extends State<HabitApp> {
                       controller: customCatCtrl,
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
-                        hintText: "Enter new category name...",
-                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                        hintText: "Category name...",
+                        hintStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 12),
                         filled: true,
-                        fillColor: ValencePalette.bgRecessed,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        fillColor: SystemTheme.surfaceElevated,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                       ),
                     )
                   else
                     Wrap(
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 6,
                       children: _skillCategories.map((cat) {
                         final isSel = selectedCat == cat;
@@ -2176,51 +1578,36 @@ class _HabitAppState extends State<HabitApp> {
                           label: Text(cat),
                           selected: isSel,
                           showCheckmark: false,
-                          selectedColor: accentColor,
-                          backgroundColor: ValencePalette.bgRecessed,
-                          labelStyle: TextStyle(color: isSel ? const Color(0xFF0F191E) : Colors.white70, fontWeight: FontWeight.w800, fontSize: 12),
+                          selectedColor: accentColor.withValues(alpha: 0.16),
+                          backgroundColor: SystemTheme.surfaceElevated,
+                          side: BorderSide(color: isSel ? accentColor : SystemTheme.border, width: 1.0),
+                          labelStyle: TextStyle(color: isSel ? accentColor : Colors.white70, fontSize: 11, fontWeight: FontWeight.w700),
                           onSelected: (_) => setModalState(() => selectedCat = cat),
                         );
                       }).toList(),
                     ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Primary Stat", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
-                            DropdownButton<String>(
-                              value: pStat,
-                              dropdownColor: ValencePalette.bgCard,
-                              isExpanded: true,
-                              style: TextStyle(color: accentColor, fontWeight: FontWeight.w900),
-                              items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) {
-                                if (v != null) setModalState(() => pStat = v);
-                              },
-                            ),
-                          ],
+                        child: DropdownButton<String>(
+                          value: pStat,
+                          dropdownColor: SystemTheme.surface,
+                          isExpanded: true,
+                          style: TextStyle(color: accentColor, fontWeight: FontWeight.w900),
+                          items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text("1°: $s"))).toList(),
+                          onChanged: (v) => setModalState(() => pStat = v!),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Secondary Stat", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
-                            DropdownButton<String>(
-                              value: sStat,
-                              dropdownColor: ValencePalette.bgCard,
-                              isExpanded: true,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
-                              items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) {
-                                if (v != null) setModalState(() => sStat = v);
-                              },
-                            ),
-                          ],
+                        child: DropdownButton<String>(
+                          value: sStat,
+                          dropdownColor: SystemTheme.surface,
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                          items: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((s) => DropdownMenuItem(value: s, child: Text("2°: $s"))).toList(),
+                          onChanged: (v) => setModalState(() => sStat = v!),
                         ),
                       ),
                     ],
@@ -2228,11 +1615,10 @@ class _HabitAppState extends State<HabitApp> {
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
-                    child: TactileButton(
-                      label: "CREATE SKILL",
+                    child: SystemButton(
+                      label: "OBTAIN SKILL",
                       color: accentColor,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      fontSize: 14,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       onPressed: () async {
                         final name = nameCtrl.text.trim();
                         if (name.isEmpty) return;
@@ -2282,7 +1668,10 @@ class _HabitAppState extends State<HabitApp> {
     final jsonString = jsonEncode(exportMap);
     await Clipboard.setData(ClipboardData(text: jsonString));
 
-    _showMessage("Backup Copied 📋", "Your profile, stats, custom skills, categories, and quests are copied to your clipboard.");
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Backup JSON copied to clipboard.')),
+    );
   }
 
   Future<void> _importProfileDataPrompt() async {
@@ -2290,24 +1679,24 @@ class _HabitAppState extends State<HabitApp> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: ValencePalette.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: ValencePalette.borderLip, width: 2)),
-        title: const Text("Restore Backup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+        backgroundColor: SystemTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: SystemTheme.border)),
+        title: const Text("RESTORE SYSTEM DATA", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
         content: TextField(
           controller: textController,
           maxLines: 4,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
+          style: const TextStyle(color: Colors.white, fontSize: 11),
           decoration: InputDecoration(
-            hintText: 'Paste backup JSON here...',
-            hintStyle: const TextStyle(color: Colors.white24),
+            hintText: 'Paste backup JSON payload here...',
+            hintStyle: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11),
             filled: true,
-            fillColor: ValencePalette.bgRecessed,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            fillColor: SystemTheme.surfaceElevated,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
-          TactileButton(
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.white38))),
+          SystemButton(
             label: "RESTORE",
             color: accentColor,
             onPressed: () async {
@@ -2330,7 +1719,7 @@ class _HabitAppState extends State<HabitApp> {
                     'last_completed_date': p['last_completed_date'],
                     'last_perfect_date': p['last_perfect_date'],
                     'last_evaluated_date': p['last_evaluated_date'],
-                    'ui_color_override': p['ui_color_override'] ?? 0xFF58CC02,
+                    'ui_color_override': p['ui_color_override'] ?? 0xFF00E5FF,
                     'str_xp': p['str_xp'] ?? 0,
                     'vit_xp': p['vit_xp'] ?? 0,
                     'int_xp': p['int_xp'] ?? 0,
@@ -2360,10 +1749,10 @@ class _HabitAppState extends State<HabitApp> {
 
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
-                _showMessage("Restored! 🎉", "All stats, skills, categories, and quests restored.");
                 _startApp();
               } catch (_) {
-                _showMessage("Invalid Backup", "The pasted text is not a valid backup JSON.");
+                if (!ctx.mounted) return;
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Invalid backup payload.')));
               }
             },
           ),
@@ -2372,10 +1761,120 @@ class _HabitAppState extends State<HabitApp> {
     );
   }
 
-  String _formatMinutes(int totalMinutes) {
-    final int h = totalMinutes ~/ 60;
-    final int m = totalMinutes % 60;
-    return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
+  void _promptFactoryReset() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SystemTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: SystemTheme.dangerRed)),
+        title: const Text("ERASE ALL SYSTEM DATA?", style: TextStyle(color: SystemTheme.dangerRed, fontSize: 14, fontWeight: FontWeight.w900)),
+        content: const Text(
+          "This will reset your rank, rating, attributes, streaks, history, custom disciplines, and directives back to absolute zero. This action is irreversible.",
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
+          ),
+          SystemButton(
+            label: "YES, WIPE EVERYTHING",
+            color: SystemTheme.dangerRed,
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _executeFactoryReset();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeFactoryReset() async {
+    HapticFeedback.heavyImpact();
+    final db = await database;
+
+    // 1. Delete all directive, skill, and surge tables
+    await db.delete('tasks');
+    await db.delete('skills');
+    await db.delete('surge_quests');
+
+    // 2. Explicitly wipe profile records and zero all XP columns
+    await db.delete('user_profile');
+    await db.insert('user_profile', {
+      'id': 1,
+      'current_streak': 0,
+      'highest_streak': 0,
+      'perfect_streak': 0,
+      'highest_perfect_streak': 0,
+      'shield_charges': 0,
+      'last_completed_date': null,
+      'last_perfect_date': null,
+      'total_rr': 0,
+      'highest_rank_level': 0,
+      'last_evaluated_date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      'ui_color_override': _uiColorOverride,
+      'emblem_color_override': -1,
+      'str_xp': 0,
+      'vit_xp': 0,
+      'int_xp': 0,
+      'per_xp': 0,
+      'agi_xp': 0,
+      'sleep_hours': 7.5,
+      'sleep_tier': 'well_rested',
+      'sleep_logged_date': '',
+      'custom_categories': '',
+    });
+
+    // 3. Immediately reset all in-memory state variables
+    setState(() {
+      currentStreak = 0;
+      highestStreak = 0;
+      perfectStreak = 0;
+      highestPerfectStreak = 0;
+      shieldCharges = 0;
+      totalRr = 0;
+      highestRankIdx = 0;
+      strXp = 0;
+      vitXp = 0;
+      intXp = 0;
+      perXp = 0;
+      agiXp = 0;
+      _allTasks = [];
+      _todayTasks = [];
+      _calendarDayTasks = [];
+      _skills = [];
+      _skillCategories = [];
+      _expandedSkillCategories.clear();
+      _activeSurgeQuest = null;
+    });
+
+    // 4. Refresh task and calendar filtering
+    _filterTasks();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All system records and attribute XP reset to zero.')),
+    );
+  }
+
+  void _openSettingsScreen() {
+    HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          accentColor: accentColor,
+          initialUiColorOverride: _uiColorOverride,
+          onColorChanged: (c) {
+            _setAccentColor(c);
+          },
+          onExport: _exportProfileData,
+          onRestore: _importProfileDataPrompt,
+          onReset: _promptFactoryReset,
+        ),
+      ),
+    );
   }
 
   @override
@@ -2394,73 +1893,107 @@ class _HabitAppState extends State<HabitApp> {
     }
 
     return Scaffold(
-      backgroundColor: ValencePalette.bgCanvas,
+      backgroundColor: SystemTheme.background,
       body: SafeArea(child: currentBody),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: ValencePalette.bgCard,
-          border: Border(top: BorderSide(color: ValencePalette.borderLip, width: 2)),
-        ),
-        child: NavigationBar(
-          height: 68,
-          backgroundColor: ValencePalette.bgCard,
-          selectedIndex: _selectedTabIndex,
-          indicatorColor: accent.withValues(alpha: 0.18),
-          onDestinationSelected: (idx) {
-            HapticFeedback.selectionClick();
-            setState(() => _selectedTabIndex = idx);
-          },
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.bolt_outlined, color: Colors.white54, size: 26),
-              selectedIcon: Icon(Icons.bolt, color: accent, size: 28),
-              label: 'Quests',
+      bottomNavigationBar: _buildModernDock(accent),
+    );
+  }
+
+  Widget _buildModernDock(Color accent) {
+    return Container(
+      height: 70,
+      decoration: const BoxDecoration(
+        color: SystemTheme.surface,
+        border: Border(top: BorderSide(color: SystemTheme.border, width: 1.0)),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Row(
+            children: [
+              _dockItem(0, Icons.shield_outlined, Icons.shield, 'STATUS', accent),
+              _dockItem(1, Icons.calendar_month_outlined, Icons.calendar_month, 'CALENDAR', accent),
+              const SizedBox(width: 60),
+              _dockItem(2, Icons.auto_awesome_outlined, Icons.auto_awesome, 'STATS', accent),
+              _dockItem(3, Icons.person_outline, Icons.person, 'PROFILE', accent),
+            ],
+          ),
+          Positioned(
+            top: -14,
+            child: GestureDetector(
+              onTap: _openAddTaskScreen,
+              child: Transform.rotate(
+                angle: pi / 4,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.45),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Transform.rotate(
+                      angle: -pi / 4,
+                      child: const Icon(Icons.add, color: Color(0xFF070A0F), size: 28),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            NavigationDestination(
-              icon: const Icon(Icons.calendar_month_outlined, color: Colors.white54, size: 24),
-              selectedIcon: Icon(Icons.calendar_month, color: accent, size: 26),
-              label: 'Calendar',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.workspace_premium_outlined, color: Colors.white54, size: 26),
-              selectedIcon: Icon(Icons.workspace_premium, color: accent, size: 28),
-              label: 'Skills',
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.person_outline, color: Colors.white54, size: 26),
-              selectedIcon: Icon(Icons.person, color: accent, size: 28),
-              label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dockItem(int idx, IconData icon, IconData activeIcon, String label, Color accent) {
+    final isSel = _selectedTabIndex == idx;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _selectedTabIndex = idx);
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(isSel ? activeIcon : icon, color: isSel ? accent : Colors.white38, size: 22),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSel ? accent : Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: _selectedTabIndex >= 2
-          ? null
-          : TactileButton(
-              label: "NEW QUEST",
-              icon: Icons.add_rounded,
-              color: accent,
-              borderRadius: 18,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-              fontSize: 13,
-              onPressed: _openAddTaskScreen,
-            ),
     );
   }
 
   // ============================================================================
-  // TAB 0: TODAY (Duolingo-Style Top Bar + League Banner + Chunky Quest Cards)
+  // TAB 0: STATUS
   // ============================================================================
   Widget _buildTodayTab() {
     final accent = accentColor;
     final int rankIdx = SystemRanks.getRankIndex(totalRr);
-    final String rankName = SystemRanks.hunterLadder[rankIdx]['name'] as String;
-    final int curMinRr = SystemRanks.hunterLadder[rankIdx]['minRr'] as int;
-    final int nextMinRr = rankIdx < SystemRanks.hunterLadder.length - 1
-        ? (SystemRanks.hunterLadder[rankIdx + 1]['minRr'] as int)
+    final String rankName = SystemRanks.rankLadder[rankIdx]['name'] as String;
+    final int curMinRr = SystemRanks.rankLadder[rankIdx]['minRr'] as int;
+    final int nextMinRr = rankIdx < SystemRanks.rankLadder.length - 1
+        ? (SystemRanks.rankLadder[rankIdx + 1]['minRr'] as int)
         : curMinRr + 10000;
     final double progress = ((totalRr - curMinRr) / max(1, nextMinRr - curMinRr)).clamp(0.0, 1.0);
-
     final int completedCount = _todayTasks.where((t) => t['last_completed_date'] == _formatDate(_today)).length;
     final double streakMult = _getPerfectStreakMultiplier(perfectStreak);
 
@@ -2469,84 +2002,64 @@ class _HabitAppState extends State<HabitApp> {
         : _todayTasks.where((t) => (t['category'] as String).toLowerCase() == _selectedCategoryFilter.toLowerCase()).toList();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _topHudCounter(Icons.local_fire_department_rounded, "$currentStreak", ValencePalette.orange, null),
-              const SizedBox(width: 8),
-              _topHudCounter(Icons.bolt_rounded, "${streakMult}x", ValencePalette.gold, null),
-              const SizedBox(width: 8),
-              _topHudCounter(Icons.shield_rounded, "$shieldCharges/3", ValencePalette.blue, null),
-              const SizedBox(width: 8),
-              _topHudCounter(Icons.bedtime_rounded, sleepShortLabel, sleepTierColor, _showSleepSyncModal),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          TactileCard(
-            borderColor: accent.withValues(alpha: 0.55),
-            lipColor: ValencePalette.darkenLip(accent),
-            padding: const EdgeInsets.all(18),
+          SystemCard(
+            borderColor: accent.withValues(alpha: 0.5),
+            onTap: _openRankDetailsScreen,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: accent, width: 2),
-                      ),
-                      child: Center(
-                        child: Text(
-                          SystemRanks.hunterLadder[rankIdx]['short'] as String,
-                          style: TextStyle(color: accent, fontWeight: FontWeight.w900, fontSize: 15),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: accent, width: 1.0),
+                          ),
+                          child: Text(
                             rankName.toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                            style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w900),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "${NumberFormat('#,###').format(totalRr)} Total RR · ${rankIdx < SystemRanks.hunterLadder.length - 1 ? '${nextMinRr - totalRr} RR to ${SystemRanks.hunterLadder[rankIdx + 1]['name']}' : 'Max Tier!'}",
-                            style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 12),
+                      ],
+                    ),
+                    Text(
+                      "${NumberFormat('#,###').format(totalRr)} RR",
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                ShineProgressBar(value: progress, color: accent, height: 15),
+                const SizedBox(height: 12),
+                SystemGauge(value: progress, color: accent, height: 6),
                 const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text("Directives: $completedCount / ${_todayTasks.length}", style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w600)),
                     Text(
-                      "Today's Goal: $completedCount / ${_todayTasks.length} Quests",
-                      style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w800),
+                      rankIdx < SystemRanks.rankLadder.length - 1 ? "${nextMinRr - totalRr} RR to Next Tier" : "APEX REACHED",
+                      style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w600),
                     ),
-                    Text(
-                      sleepTier == 'well_rested'
-                          ? "🌙 +15% Sleep Boost"
-                          : sleepTier == 'fatigue'
-                              ? "⚠️ -20% Sleep Fatigue"
-                              : "🌙 1.0x Standard Sleep",
-                      style: TextStyle(color: sleepTierColor, fontSize: 12, fontWeight: FontWeight.w800),
-                    ),
+                  ],
+                ),
+                const Divider(color: SystemTheme.border, height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _telemetryPill("STREAK", "$currentStreak d"),
+                    _telemetryPill("MULT", "${streakMult.toStringAsFixed(2)}x"),
+                    _telemetryPill("SHIELD", "$shieldCharges/3"),
+                    _telemetryPill("SLEEP", sleepShortLabel),
                   ],
                 ),
               ],
@@ -2555,366 +2068,185 @@ class _HabitAppState extends State<HabitApp> {
           const SizedBox(height: 16),
 
           if (_activeSurgeQuest != null) ...[
-            _buildSurgeQuestBanner(_activeSurgeQuest!, accent),
+            _buildSurgeCard(_activeSurgeQuest!),
             const SizedBox(height: 16),
           ],
 
-          SizedBox(
-            height: 38,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
+          const Text("TODAY'S DIRECTIVES", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: ['All', 'Academic', 'Fitness', 'General'].map((cat) {
                 final isSelected = _selectedCategoryFilter == cat;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedCategoryFilter = cat);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? accent : ValencePalette.bgCard,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: isSelected ? accent : ValencePalette.borderLip, width: 2),
-                      ),
-                      child: Text(
-                        cat.toUpperCase(),
-                        style: TextStyle(
-                          color: isSelected ? const Color(0xFF0F191E) : Colors.white70,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _selectedCategoryFilter = cat),
+                    selectedColor: accent.withValues(alpha: 0.16),
+                    backgroundColor: SystemTheme.surface,
+                    side: BorderSide(color: isSelected ? accent : SystemTheme.border),
+                    labelStyle: TextStyle(color: isSelected ? accent : Colors.white70, fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 );
               }).toList(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           if (visibleTasks.isEmpty)
-            TactileCard(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-              child: const Center(
-                child: Text(
-                  "No quests scheduled for today.\nTap '+ NEW QUEST' below to add one!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 14, fontWeight: FontWeight.w700, height: 1.4),
+            SystemCard(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Text(
+                    "No directives logged for today.\nTap '+' below to add your schedule.",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
+                  ),
                 ),
               ),
             )
           else
-            ...visibleTasks.map((task) => _buildTactileQuestCard(task, accent)),
+            ...visibleTasks.map((t) => _buildDirectiveCard(t, accent)),
 
-          const SizedBox(height: 80),
+          const SizedBox(height: 70),
         ],
       ),
     );
   }
 
-  Widget _topHudCounter(IconData icon, String value, Color color, VoidCallback? onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-          decoration: BoxDecoration(
-            color: ValencePalette.bgCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: onTap != null ? color.withValues(alpha: 0.55) : ValencePalette.borderLip, width: 2),
-            boxShadow: const [
-              BoxShadow(color: ValencePalette.borderLip, offset: Offset(0, 3), blurRadius: 0),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 18),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  value,
-                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _telemetryPill(String label, String value) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 10, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+      ],
     );
   }
 
-  Widget _buildSurgeQuestBanner(JsonMap surge, Color accent) {
-    final int expireEpoch = surge['expire_epoch'] as int;
-    final int minsRemaining = max(0, (expireEpoch - DateTime.now().millisecondsSinceEpoch) ~/ 60000);
-    final bool isLockedGamble = surge['status'] == 'accepted_gamble';
-    final bool effectiveGamble = isLockedGamble || _surgeGambleArmed;
-
-    final int baseRr = surge['base_rr'] as int;
-    final double mult = _getPerfectStreakMultiplier(perfectStreak) * sleepRrMultiplier;
-    final int scaledReward = ((baseRr * (effectiveGamble ? 2 : 1)) * mult).round();
-    final int gambleLoss = baseRr * 2;
-
-    final Color bannerColor = effectiveGamble ? ValencePalette.red : ValencePalette.gold;
-
-    return TactileCard(
-      borderColor: bannerColor,
-      lipColor: ValencePalette.darkenLip(bannerColor),
+  Widget _buildSurgeCard(JsonMap surge) {
+    final int base = surge['base_rr'] as int;
+    return SystemCard(
+      borderColor: SystemTheme.shadowViolet,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.bolt_rounded, color: bannerColor, size: 20),
-                  const SizedBox(width: 6),
-                  Text(
-                    effectiveGamble ? "DOUBLE-OR-NOTHING WAGER" : "BONUS SURGE QUEST",
-                    style: TextStyle(color: bannerColor, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.6),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: bannerColor.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text("${minsRemaining}m left", style: TextStyle(color: bannerColor, fontWeight: FontWeight.w900, fontSize: 11)),
-              ),
+              const Icon(Icons.bolt, color: SystemTheme.shadowViolet, size: 18),
+              const SizedBox(width: 6),
+              const Text("EMERGENCY SURGE DIRECTIVE", style: TextStyle(color: SystemTheme.shadowViolet, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            surge['title'] as String,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            effectiveGamble
-                ? "${surge['description']} · Risking -$gambleLoss RR if timer runs out!"
-                : "${surge['description']} · Quick free-time bonus.",
-            style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-          if (!isLockedGamble) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "🎲 2x Double-or-Nothing (Risk -$gambleLoss RR)",
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                Switch(
-                  value: _surgeGambleArmed,
-                  activeThumbColor: ValencePalette.red,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onChanged: (val) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _surgeGambleArmed = val);
-                  },
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: ValencePalette.borderLip, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                  ),
-                  onPressed: () => _dismissSurgeQuest(surge),
-                  child: Text(isLockedGamble ? "FORFEIT (-$gambleLoss)" : "SKIP", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TactileButton(
-                  label: _surgeGambleArmed && !isLockedGamble ? "LOCK WAGER" : "CLAIM +$scaledReward RR",
-                  color: bannerColor,
-                  textColor: effectiveGamble ? Colors.white : const Color(0xFF0F191E),
-                  onPressed: () {
-                    if (_surgeGambleArmed && !isLockedGamble) {
-                      _lockInTarnishedGamble(surge);
-                    } else {
-                      _completeSurgeQuest(surge);
-                    }
-                  },
-                ),
-              ),
-            ],
+          Text(surge['title'] as String, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          SystemButton(
+            label: "EXECUTE SURGE (+$base RR)",
+            color: SystemTheme.shadowViolet,
+            onPressed: () => _completeSurgeQuest(surge),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTactileQuestCard(JsonMap task, Color accent) {
+  Widget _buildDirectiveCard(JsonMap task, Color accent) {
     final todayStr = _formatDate(_today);
     final bool isCompleted = task['last_completed_date'] == todayStr;
-    final int requireGps = (task['require_gps'] as int?) ?? 1;
-    final String category = task['category'] as String;
     final int isBoss = (task['is_boss'] as int?) ?? 0;
-    final int prepStacks = _getEffectiveBossPrepStacks(task);
+    final double targetLat = (task['target_lat'] as num?)?.toDouble() ?? 0.0;
+    final double targetLng = (task['target_lng'] as num?)?.toDouble() ?? 0.0;
+    final bool hasLocation = targetLat != 0.0 || targetLng != 0.0;
     final String pStat = (task['primary_stat'] as String?) ?? 'INT';
     final String sStat = (task['secondary_stat'] as String?) ?? 'PER';
-    final int skillId = (task['skill_id'] as int?) ?? -1;
-    final skill = _findSkillById(skillId);
+    final String timeStr = "${task['start_hour'].toString().padLeft(2, '0')}:${task['start_minute'].toString().padLeft(2, '0')} - ${task['end_hour'].toString().padLeft(2, '0')}:${task['end_minute'].toString().padLeft(2, '0')}";
 
-    final Color catColor = isBoss == 1
-        ? ValencePalette.gold
-        : category == 'Fitness'
-            ? ValencePalette.orange
-            : category == 'Academic'
-                ? ValencePalette.blue
-                : ValencePalette.purple;
+    final Color statusColor = isCompleted
+        ? SystemTheme.clearGreen
+        : (isBoss == 1 ? SystemTheme.shadowViolet : SystemTheme.cyan);
 
-    final IconData catIcon = isBoss == 1
-        ? Icons.emoji_events_rounded
-        : category == 'Fitness'
-            ? Icons.fitness_center_rounded
-            : category == 'Academic'
-                ? Icons.menu_book_rounded
-                : Icons.bolt_rounded;
-
-    final now = DateTime.now();
-    final startDt = DateTime(now.year, now.month, now.day, task['start_hour'] as int, task['start_minute'] as int);
-    final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int);
-    final windowStart = startDt.subtract(const Duration(minutes: 15));
-    final windowEnd = endDt.add(const Duration(minutes: 15));
-
-    final bool isWindowOpen = now.isAfter(windowStart) && now.isBefore(windowEnd);
-    final bool isPastWindow = now.isAfter(windowEnd);
-    final bool canCheckIn = !isCompleted && isWindowOpen;
-
-    final String timeLabel =
-        "${task['start_hour'].toString().padLeft(2, '0')}:${task['start_minute'].toString().padLeft(2, '0')} – ${task['end_hour'].toString().padLeft(2, '0')}:${task['end_minute'].toString().padLeft(2, '0')}";
-
-    return TactileCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      borderColor: isCompleted
-          ? ValencePalette.green
-          : isBoss == 1
-              ? ValencePalette.gold
-              : isWindowOpen
-                  ? catColor
-                  : ValencePalette.borderLip,
-      lipColor: isCompleted
-          ? ValencePalette.greenLip
-          : isBoss == 1
-              ? ValencePalette.goldLip
-              : ValencePalette.borderLip,
-      onTap: () => _showTaskDetailSheet(task, _today),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: (isCompleted ? ValencePalette.green : catColor).withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: (isCompleted ? ValencePalette.green : catColor).withValues(alpha: 0.6),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              isCompleted ? Icons.check_rounded : catIcon,
-              color: isCompleted ? ValencePalette.green : catColor,
-              size: 26,
-            ),
+    return InkWell(
+      onTap: () => _openQuestOptions(task),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SystemTheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isCompleted ? SystemTheme.clearGreen.withValues(alpha: 0.35) : statusColor.withValues(alpha: 0.5),
+            width: 1.0,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Text(
-                      timeLabel,
-                      style: TextStyle(
-                        color: isWindowOpen ? catColor : Colors.white54,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(timeStr, style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 3),
+                      Text(
+                        task['title'] as String,
+                        style: TextStyle(
+                          color: isCompleted ? Colors.white38 : Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          decoration: isCompleted ? TextDecoration.lineThrough : null,
+                        ),
                       ),
-                    ),
-                    if (requireGps == 1) ...[
-                      const SizedBox(width: 5),
-                      const Icon(Icons.location_on, color: Colors.white38, size: 13),
+                      const SizedBox(height: 4),
+                      Text(
+                        isBoss == 1 ? "GATE CHALLENGE · ±${task['boss_stake']} RR" : "+$pStat / +$sStat",
+                        style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w800),
+                      ),
                     ],
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  task['title'] as String,
-                  style: TextStyle(
-                    color: isCompleted ? Colors.white54 : Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    decoration: isCompleted ? TextDecoration.lineThrough : null,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: ValencePalette.bgRecessed,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isBoss == 1 ? "👑 Prep $prepStacks/5" : "+$pStat · +$sStat",
-                        style: TextStyle(color: catColor, fontSize: 10, fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                    if (skill != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: ValencePalette.green.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "${skill['name']} (${SystemRanks.getSkillRankLetter((skill['mastery_xp'] as int?) ?? 0)})",
-                          style: const TextStyle(color: ValencePalette.green, fontSize: 10, fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                  ],
+                const SizedBox(width: 8),
+                SystemButton(
+                  label: isCompleted ? "CLEARED" : (isBoss == 1 ? "ENGAGE" : "CHECK IN"),
+                  color: isCompleted ? SystemTheme.clearGreen : statusColor,
+                  onPressed: isCompleted ? null : () => _attemptCheckIn(task),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 10),
-          TactileButton(
-            label: isCompleted
-                ? "DONE"
-                : isWindowOpen
-                    ? (isBoss == 1 ? "FIGHT" : "CHECK IN")
-                    : isPastWindow
-                        ? "MISSED"
-                        : "LOCKED",
-            color: isBoss == 1 ? ValencePalette.gold : ValencePalette.green,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            fontSize: 11,
-            onPressed: canCheckIn ? () => _attemptCheckIn(task) : null,
-          ),
-        ],
+            if (hasLocation) ...[
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () => _openGoogleMapsDirections(targetLat, targetLng),
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: SystemTheme.cyan.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: SystemTheme.cyan.withValues(alpha: 0.4), width: 0.8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.directions_outlined, color: SystemTheme.cyan, size: 14),
+                      SizedBox(width: 4),
+                      Text("DIRECTIONS", style: TextStyle(color: SystemTheme.cyan, fontSize: 10, fontWeight: FontWeight.w900)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -2928,54 +2260,52 @@ class _HabitAppState extends State<HabitApp> {
     final int month = _calendarMonthCursor.month;
     final int daysInMonth = DateTime(year, month + 1, 0).day;
     final int firstWeekdayOffset = DateTime(year, month, 1).weekday - 1;
-    final todayOnly = DateTime(_today.year, _today.month, _today.day);
+    final todayStr = _formatDate(_today);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TactileCard(
-            padding: const EdgeInsets.all(14),
+          SystemCard(
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
+                      icon: const Icon(Icons.chevron_left, color: Colors.white, size: 22),
                       onPressed: () => setState(() => _calendarMonthCursor = DateTime(year, month - 1, 1)),
                     ),
                     Text(
                       DateFormat('MMMM yyyy').format(_calendarMonthCursor).toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.6),
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.8),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
+                      icon: const Icon(Icons.chevron_right, color: Colors.white, size: 22),
                       onPressed: () => setState(() => _calendarMonthCursor = DateTime(year, month + 1, 1)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                      .map((d) => SizedBox(
-                            width: 34,
-                            child: Text(d, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w900)),
-                          ))
-                      .toList(),
+                  children: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((d) {
+                    return SizedBox(
+                      width: 36,
+                      child: Text(
+                        d,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 10, fontWeight: FontWeight.w800),
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 8),
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
-                    childAspectRatio: 1.0,
-                  ),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1.1),
                   itemCount: firstWeekdayOffset + daysInMonth,
                   itemBuilder: (context, idx) {
                     if (idx < firstWeekdayOffset) return const SizedBox.shrink();
@@ -2983,12 +2313,7 @@ class _HabitAppState extends State<HabitApp> {
                     final DateTime cellDate = DateTime(year, month, dayNum);
                     final String cellStr = _formatDate(cellDate);
                     final bool isSelected = _formatDate(_selectedCalendarDate) == cellStr;
-                    final bool isTodayCell = _formatDate(todayOnly) == cellStr;
-
-                    final dayTasks = _allTasks.where((t) => _isTaskActiveOnDate(t, cellDate)).toList();
-                    final bool hasBoss = dayTasks.any((t) => (t['is_boss'] as int? ?? 0) == 1);
-                    final bool allCleared = dayTasks.isNotEmpty && dayTasks.every((t) => t['last_completed_date'] == cellStr);
-                    final bool hasMissed = cellDate.isBefore(todayOnly) && dayTasks.any((t) => t['last_completed_date'] != cellStr);
+                    final bool isToday = cellStr == todayStr;
 
                     return GestureDetector(
                       onTap: () {
@@ -2999,45 +2324,28 @@ class _HabitAppState extends State<HabitApp> {
                         });
                       },
                       child: Container(
+                        margin: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? accent
-                              : isTodayCell
-                                  ? ValencePalette.bgRecessed
-                                  : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: isTodayCell && !isSelected ? Border.all(color: accent, width: 2) : null,
+                          color: isSelected ? accent.withValues(alpha: 0.22) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? accent
+                                : (isToday ? SystemTheme.monarchGold : SystemTheme.borderSubtle),
+                            width: isToday || isSelected ? 1.5 : 0.8,
+                          ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "$dayNum",
-                              style: TextStyle(
-                                color: isSelected ? const Color(0xFF0F191E) : (isTodayCell ? accent : Colors.white),
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
-                              ),
+                        child: Center(
+                          child: Text(
+                            "$dayNum",
+                            style: TextStyle(
+                              color: isSelected
+                                  ? accent
+                                  : (isToday ? SystemTheme.monarchGold : Colors.white70),
+                              fontSize: 12,
+                              fontWeight: isToday || isSelected ? FontWeight.w900 : FontWeight.w700,
                             ),
-                            const SizedBox(height: 3),
-                            if (dayTasks.isNotEmpty)
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected
-                                      ? const Color(0xFF0F191E)
-                                      : hasBoss
-                                          ? ValencePalette.gold
-                                          : allCleared
-                                              ? ValencePalette.green
-                                              : hasMissed
-                                                  ? ValencePalette.red
-                                                  : ValencePalette.blue,
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
                       ),
                     );
@@ -3046,20 +2354,20 @@ class _HabitAppState extends State<HabitApp> {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Text(
-            DateFormat('EEEE, MMMM d').format(_selectedCalendarDate).toUpperCase(),
-            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+            "TIMETABLE · ${_formatDate(_selectedCalendarDate)}",
+            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.8),
           ),
           const SizedBox(height: 10),
-          _buildContiguousIntervalsList(accent),
-          const SizedBox(height: 80),
+          _buildDayTimetable(accent),
+          const SizedBox(height: 70),
         ],
       ),
     );
   }
 
-  Widget _buildContiguousIntervalsList(Color accent) {
+  Widget _buildDayTimetable(Color accent) {
     const int dayStart = 360;
     const int dayEnd = 1380;
 
@@ -3076,96 +2384,81 @@ class _HabitAppState extends State<HabitApp> {
       final int taskEnd = (task['end_hour'] as int) * 60 + (task['end_minute'] as int);
 
       if (taskStart > cursor) {
-        blocks.add(_buildScheduleIntervalCard(
-          startTime: _formatMinutes(cursor),
-          endTime: _formatMinutes(taskStart),
-          title: "Free Time",
-          isFreeTime: true,
-          isBoss: false,
+        blocks.add(_buildTimeSlotCard(
+          start: _formatMinutes(cursor),
+          end: _formatMinutes(taskStart),
+          title: "Available Buffer",
+          isFree: true,
           status: 'none',
-          onTap: null,
         ));
       }
 
-      final bool isCompletedOnDay = task['last_completed_date'] == selectedDateStr;
-      bool isMissedOnDay = false;
+      final bool isCompleted = task['last_completed_date'] == selectedDateStr;
+      bool isMissed = false;
 
-      if (!isCompletedOnDay) {
+      if (!isCompleted) {
         if (selectedDayOnly.isBefore(todayDayOnly)) {
-          isMissedOnDay = true;
+          isMissed = true;
         } else if (selectedDayOnly.isAtSameMomentAs(todayDayOnly)) {
-          final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int)
-              .add(const Duration(minutes: 15));
-          if (now.isAfter(endDt)) {
-            isMissedOnDay = true;
-          }
+          final endDt = DateTime(now.year, now.month, now.day, task['end_hour'] as int, task['end_minute'] as int).add(const Duration(minutes: 15));
+          if (now.isAfter(endDt)) isMissed = true;
         }
       }
 
-      final String status = isCompletedOnDay
-          ? 'completed'
-          : isMissedOnDay
-              ? 'missed'
-              : 'upcoming';
+      final String status = isCompleted ? 'completed' : (isMissed ? 'missed' : 'upcoming');
 
-      final bool isBoss = (task['is_boss'] as int? ?? 0) == 1;
-
-      blocks.add(_buildScheduleIntervalCard(
-        startTime: _formatMinutes(taskStart),
-        endTime: _formatMinutes(taskEnd),
-        title: isBoss ? "👑 ${task['title']}" : (task['title'] as String),
-        description: task['description'] as String?,
-        isFreeTime: false,
-        isBoss: isBoss,
+      blocks.add(_buildTimeSlotCard(
+        start: _formatMinutes(taskStart),
+        end: _formatMinutes(taskEnd),
+        title: task['title'] as String,
+        isFree: false,
         status: status,
-        onTap: () => _showTaskDetailSheet(task, _selectedCalendarDate),
+        isBoss: (task['is_boss'] as int? ?? 0) == 1,
+        onTap: () => _openQuestOptions(task, _selectedCalendarDate),
       ));
 
       cursor = max(cursor, taskEnd);
     }
 
     if (cursor < dayEnd) {
-      blocks.add(_buildScheduleIntervalCard(
-        startTime: _formatMinutes(cursor),
-        endTime: _formatMinutes(dayEnd),
-        title: "Free Time",
-        isFreeTime: true,
-        isBoss: false,
+      blocks.add(_buildTimeSlotCard(
+        start: _formatMinutes(cursor),
+        end: _formatMinutes(dayEnd),
+        title: "Available Buffer",
+        isFree: true,
         status: 'none',
-        onTap: null,
       ));
     }
 
     return Column(children: blocks);
   }
 
-  Widget _buildScheduleIntervalCard({
-    required String startTime,
-    required String endTime,
+  Widget _buildTimeSlotCard({
+    required String start,
+    required String end,
     required String title,
-    String? description,
-    required bool isFreeTime,
-    required bool isBoss,
+    required bool isFree,
     required String status,
+    bool isBoss = false,
     VoidCallback? onTap,
   }) {
-    if (isFreeTime) {
+    if (isFree) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 6),
         child: Row(
           children: [
             SizedBox(
-              width: 88,
-              child: Text("$startTime – $endTime", style: const TextStyle(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.w700)),
+              width: 86,
+              child: Text("$start - $end", style: const TextStyle(color: Colors.white24, fontSize: 10, fontFamily: 'monospace')),
             ),
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
-                  color: ValencePalette.bgRecessed,
-                  borderRadius: BorderRadius.circular(12),
+                  color: SystemTheme.surfaceElevated.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text("Free Time", style: TextStyle(color: Colors.white30, fontSize: 12, fontWeight: FontWeight.w700)),
+                child: const Text("Free Period", style: TextStyle(color: Colors.white24, fontSize: 11)),
               ),
             ),
           ],
@@ -3173,63 +2466,54 @@ class _HabitAppState extends State<HabitApp> {
       );
     }
 
-    Color borderColor = ValencePalette.borderLip;
-    Color lipColor = ValencePalette.borderLip;
-    Color bgColor = ValencePalette.bgCard;
-
+    Color borderCol = SystemTheme.border;
+    Color tagCol = SystemTheme.cyan;
     if (status == 'completed') {
-      borderColor = ValencePalette.green;
-      lipColor = ValencePalette.greenLip;
-      bgColor = ValencePalette.green.withValues(alpha: 0.12);
+      borderCol = SystemTheme.clearGreen;
+      tagCol = SystemTheme.clearGreen;
     } else if (status == 'missed') {
-      borderColor = ValencePalette.red;
-      lipColor = ValencePalette.redLip;
-      bgColor = ValencePalette.red.withValues(alpha: 0.12);
+      borderCol = SystemTheme.dangerRed;
+      tagCol = SystemTheme.dangerRed;
     } else if (isBoss) {
-      borderColor = ValencePalette.gold;
-      lipColor = ValencePalette.goldLip;
+      borderCol = SystemTheme.shadowViolet;
+      tagCol = SystemTheme.shadowViolet;
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           SizedBox(
-            width: 88,
-            child: Text(
-              "$startTime – $endTime",
-              style: TextStyle(color: isBoss ? ValencePalette.gold : Colors.white70, fontSize: 11, fontWeight: FontWeight.w800),
-            ),
+            width: 86,
+            child: Text("$start - $end", style: TextStyle(color: tagCol, fontSize: 10, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
           ),
           Expanded(
-            child: TactileCard(
-              bgColor: bgColor,
-              borderColor: borderColor,
-              lipColor: lipColor,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              borderRadius: 14,
+            child: InkWell(
               onTap: onTap,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
-                        if (description != null && description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(description, style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ],
-                      ],
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: SystemTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: borderCol.withValues(alpha: 0.6), width: 1.0),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        isBoss ? "👑 $title" : title,
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  if (status == 'completed')
-                    const Icon(Icons.check_circle_rounded, color: ValencePalette.green, size: 20)
-                  else if (status == 'missed')
-                    const Icon(Icons.cancel_rounded, color: ValencePalette.red, size: 20)
-                  else
-                    const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
-                ],
+                    Text(
+                      status.toUpperCase(),
+                      style: TextStyle(color: tagCol, fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -3239,22 +2523,21 @@ class _HabitAppState extends State<HabitApp> {
   }
 
   // ============================================================================
-  // TAB 2: SKILLS
+  // TAB 2: ATTRIBUTES
   // ============================================================================
   Widget _buildSkillsTab() {
     final accent = accentColor;
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TactileCard(
+          SystemCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("CORE ATTRIBUTES", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
-                const SizedBox(height: 8),
+                const Text("ATTRIBUTES", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                const SizedBox(height: 10),
                 SizedBox(
                   height: 190,
                   child: CustomPaint(
@@ -3269,43 +2552,43 @@ class _HabitAppState extends State<HabitApp> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                _buildStatProgressRow("💪 Strength (STR)", strXp, ValencePalette.orange),
-                _buildStatProgressRow("❤️ Vitality (VIT)", vitXp, ValencePalette.green),
-                _buildStatProgressRow("🧠 Intelligence (INT)", intXp, ValencePalette.blue),
-                _buildStatProgressRow("👁️ Perception (PER)", perXp, ValencePalette.gold),
-                _buildStatProgressRow("⚡ Agility (AGI)", agiXp, ValencePalette.purple),
+                const SizedBox(height: 10),
+                _statRowWithGauge("STR · Strength", strXp, SystemTheme.dangerRed),
+                _statRowWithGauge("VIT · Vitality", vitXp, SystemTheme.cyan),
+                _statRowWithGauge("INT · Intellect", intXp, SystemTheme.electricBlue),
+                _statRowWithGauge("PER · Perception", perXp, SystemTheme.monarchGold),
+                _statRowWithGauge("AGI · Agility", agiXp, SystemTheme.shadowViolet),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("SKILL TREES", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
+              const Text("SKILLS & DISCIPLINES", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
               Row(
                 children: [
-                  TactileButton(
+                  SystemButton(
                     label: "+ CATEGORY",
-                    color: ValencePalette.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    fontSize: 11,
+                    color: SystemTheme.shadowViolet,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    fontSize: 9,
                     onPressed: _showAddCategoryDialog,
                   ),
-                  const SizedBox(width: 8),
-                  TactileButton(
+                  const SizedBox(width: 6),
+                  SystemButton(
                     label: "+ SKILL",
                     color: accent,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    fontSize: 11,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    fontSize: 9,
                     onPressed: _showCreateSkillModal,
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           ..._skillCategories.map((cat) {
             final catSkills = _skills.where((s) => (s['category'] as String).toLowerCase() == cat.toLowerCase()).toList();
@@ -3320,58 +2603,70 @@ class _HabitAppState extends State<HabitApp> {
             final Color catBadgeColor = SystemRanks.getLetterColor(catLetter, accent);
             final bool isExpanded = _expandedSkillCategories.contains(cat);
 
-            return TactileCard(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
+            return SystemCard(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        if (isExpanded) {
-                          _expandedSkillCategories.remove(cat);
-                        } else {
-                          _expandedSkillCategories.add(cat);
-                        }
-                      });
-                    },
-                    child: Row(
-                      children: [
-                        Icon(isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded, color: Colors.white70, size: 24),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(cat.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
-                              Text(
-                                catSkills.isEmpty ? "No skills added yet" : "${catSkills.length} skill(s) · Avg ${avgNumeric.toStringAsFixed(1)} → $catLetter-Rank",
-                                style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w700),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            if (isExpanded) {
+                              _expandedSkillCategories.remove(cat);
+                            } else {
+                              _expandedSkillCategories.add(cat);
+                            }
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Icon(isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right, color: Colors.white70, size: 20),
+                            const SizedBox(width: 4),
+                            Text(cat.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: catBadgeColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: catBadgeColor, width: 0.8),
+                            ),
+                            child: Text(
+                              "$catLetter-RANK",
+                              style: TextStyle(color: catBadgeColor, fontWeight: FontWeight.w900, fontSize: 10),
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: Colors.white38, size: 18),
+                            color: SystemTheme.surfaceElevated,
+                            onSelected: (val) {
+                              if (val == 'delete') _deleteSkillCategory(cat);
+                            },
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text("Delete Category", style: TextStyle(color: SystemTheme.dangerRed, fontSize: 12)),
                               ),
                             ],
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: catBadgeColor,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            "$catLetter-RANK",
-                            style: const TextStyle(color: Color(0xFF0F191E), fontWeight: FontWeight.w900, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
                   if (isExpanded) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     if (catSkills.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text("Tap '+ SKILL' above to add a discipline here.", style: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text("No skills logged under this category.", style: TextStyle(color: Colors.white38, fontSize: 12)),
                       )
                     else
                       ...catSkills.map((skill) {
@@ -3381,42 +2676,40 @@ class _HabitAppState extends State<HabitApp> {
                         final int prevT = SystemRanks.getPrevSkillThreshold(xp);
                         final int nextT = SystemRanks.getNextSkillThreshold(xp);
                         final double frac = ((xp - prevT) / max(1, nextT - prevT)).clamp(0.0, 1.0);
-                        final int bonusPct = (SystemRanks.getSkillRrBonusMultiplier(xp) * 100).round();
 
-                        return Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: ValencePalette.bgRecessed,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: ValencePalette.borderLip, width: 1.5),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(skill['name'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
-                                  ),
-                                  Text("$letter-Rank", style: TextStyle(color: sColor, fontWeight: FontWeight.w900, fontSize: 13)),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                "+${skill['primary_stat']} / +${skill['secondary_stat']} · Passive: +$bonusPct% RR",
-                                style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(child: ShineProgressBar(value: frac, color: sColor, height: 10, bgColor: ValencePalette.bgCard)),
-                                  const SizedBox(width: 10),
-                                  Text("$xp / $nextT XP", style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w800)),
-                                ],
-                              ),
-                            ],
+                        return InkWell(
+                          onTap: () => _showEditSkillModal(skill),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: SystemTheme.surfaceElevated,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: SystemTheme.border, width: 0.8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(skill['name'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                                    Text("$letter-Rank", style: TextStyle(color: sColor, fontWeight: FontWeight.w900, fontSize: 12)),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                SystemGauge(value: frac, color: sColor, height: 5),
+                                const SizedBox(height: 5),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text("+${skill['primary_stat']} / +${skill['secondary_stat']}", style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 10, fontWeight: FontWeight.w600)),
+                                    Text("$xp / $nextT XP (Tap to edit)", style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 10, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }),
@@ -3426,28 +2719,28 @@ class _HabitAppState extends State<HabitApp> {
             );
           }),
 
-          const SizedBox(height: 50),
+          const SizedBox(height: 70),
         ],
       ),
     );
   }
 
-  Widget _buildStatProgressRow(String label, int xp, Color color) {
+  Widget _statRowWithGauge(String lbl, int xp, Color c) {
     final int lv = (xp ~/ 100) + 1;
     final int modXp = xp % 100;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-              Text("Lv.$lv  ($modXp/100)", style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w900)),
+              Text(lbl, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              Text("Lv.$lv ($modXp/100 XP)", style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w800)),
             ],
           ),
-          const SizedBox(height: 5),
-          ShineProgressBar(value: modXp / 100.0, color: color, height: 10),
+          const SizedBox(height: 4),
+          SystemGauge(value: modXp / 100.0, color: c, height: 5),
         ],
       ),
     );
@@ -3459,35 +2752,69 @@ class _HabitAppState extends State<HabitApp> {
   Widget _buildProfileTab() {
     final accent = accentColor;
     final int currentRankIdx = SystemRanks.getRankIndex(totalRr);
-    final String currentRankName = SystemRanks.hunterLadder[currentRankIdx]['name'] as String;
-    final String peakRankName = SystemRanks.hunterLadder[highestRankIdx.clamp(0, 9)]['name'] as String;
+    final String currentRankName = SystemRanks.rankLadder[currentRankIdx]['name'] as String;
+    final double mult = _getPerfectStreakMultiplier(perfectStreak) * sleepRrMultiplier;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TactileCard(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("HUNTER DOSSIER", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white70, size: 22),
+                onPressed: _openSettingsScreen,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          SystemCard(
+            borderColor: accent.withValues(alpha: 0.5),
+            onTap: _openRankDetailsScreen,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(currentRankName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 4),
-                Text("${NumberFormat('#,###').format(totalRr)} Total RR · Peak Rank: $peakRankName", style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w800)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      currentRankName.toUpperCase(),
+                      style: TextStyle(color: accent, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+                  ],
+                ),
+                Text(
+                  "OVERALL RATING: ${NumberFormat('#,###').format(totalRr)} RR",
+                  style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 16),
+
                 Row(
                   children: [
-                    _profileMetricBox("🔥 Current Streak", "$currentStreak days"),
-                    const SizedBox(width: 10),
-                    _profileMetricBox("🏆 Best Streak", "$highestStreak days"),
+                    _profileMetricBox("CURRENT STREAK", "$currentStreak d"),
+                    const SizedBox(width: 8),
+                    _profileMetricBox("BEST STREAK", "$highestStreak d"),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    _profileMetricBox("⚡ Perfect Streak", "$perfectStreak days"),
-                    const SizedBox(width: 10),
-                    _profileMetricBox("🛡️ Streak Freezes", "$shieldCharges / 3"),
+                    _profileMetricBox("PERFECT STREAK", "$perfectStreak d"),
+                    const SizedBox(width: 8),
+                    _profileMetricBox("BEST PERFECT", "$highestPerfectStreak d"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _profileMetricBox("SHIELDS", "$shieldCharges / 3"),
+                    const SizedBox(width: 8),
+                    _profileMetricBox("MULT", "${mult.toStringAsFixed(2)}x"),
                   ],
                 ),
               ],
@@ -3495,110 +2822,31 @@ class _HabitAppState extends State<HabitApp> {
           ),
           const SizedBox(height: 16),
 
-          TactileCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("APP ACCENT COLOR", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: themePalette.map((item) {
-                    final Color c = item['color'] as Color;
-                    final bool isSelected = _uiColorOverride == c.toARGB32();
-                    return GestureDetector(
-                      onTap: () => _setAccentColor(c.toARGB32()),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? c.withValues(alpha: 0.2) : ValencePalette.bgRecessed,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isSelected ? c : ValencePalette.borderLip, width: 2),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(width: 14, height: 14, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
-                            const SizedBox(width: 8),
-                            Text(item['name'] as String, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          TactileCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("LEAGUE / RANK LADDER", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
-                const SizedBox(height: 10),
-                ...SystemRanks.hunterLadder.map((tier) {
-                  final int idx = tier['index'] as int;
-                  final bool isCurrent = idx == currentRankIdx;
-                  final bool isUnlocked = idx <= currentRankIdx;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: isCurrent ? accent.withValues(alpha: 0.16) : ValencePalette.bgRecessed,
-                      borderRadius: BorderRadius.circular(10),
-                      border: isCurrent ? Border.all(color: accent, width: 2) : null,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          tier['name'] as String,
-                          style: TextStyle(
-                            color: isCurrent ? accent : (isUnlocked ? Colors.white : Colors.white38),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          "${NumberFormat('#,###').format(tier['minRr'])} RR",
-                          style: TextStyle(color: isCurrent ? accent : Colors.white54, fontSize: 12, fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          TactileCard(
+          SystemCard(
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: TactileButton(
-                    label: "EXPORT BACKUP",
-                    icon: Icons.copy_rounded,
-                    color: accent,
-                    onPressed: _exportProfileData,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("SLEEP PROTOCOL", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                      "${_formatSleepTime(sleepHours)} · $sleepTierLabel",
+                      style: TextStyle(color: sleepTierColor, fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TactileButton(
-                    label: "RESTORE",
-                    icon: Icons.download_rounded,
-                    color: ValencePalette.blue,
-                    onPressed: _importProfileDataPrompt,
-                  ),
+                SystemButton(
+                  label: "LOG / SYNC",
+                  color: sleepTierColor,
+                  onPressed: _showSleepSyncModal,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 50),
+
+          const SizedBox(height: 70),
         ],
       ),
     );
@@ -3607,20 +2855,255 @@ class _HabitAppState extends State<HabitApp> {
   Widget _profileMetricBox(String label, String value) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: ValencePalette.bgRecessed,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: ValencePalette.borderLip, width: 1.5),
+          color: SystemTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: SystemTheme.border, width: 0.8),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+            Text(label, style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 9, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// RANK HIERARCHY SCREEN
+// ============================================================================
+class RankHierarchyScreen extends StatelessWidget {
+  final int currentRr;
+  final Color accentColor;
+
+  const RankHierarchyScreen({
+    super.key,
+    required this.currentRr,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final int currentRankIdx = SystemRanks.getRankIndex(currentRr);
+
+    return Scaffold(
+      backgroundColor: SystemTheme.background,
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("RANK HIERARCHY", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+        backgroundColor: SystemTheme.surface,
+        elevation: 0,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: SystemRanks.rankLadder.length,
+        itemBuilder: (context, idx) {
+          final rank = SystemRanks.rankLadder[idx];
+          final bool isCurrent = idx == currentRankIdx;
+          final bool isUnlocked = idx <= currentRankIdx;
+          final int minRr = rank['minRr'] as int;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isCurrent ? accentColor.withValues(alpha: 0.15) : SystemTheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isCurrent ? accentColor : (isUnlocked ? SystemTheme.border : SystemTheme.borderSubtle),
+                width: isCurrent ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isCurrent ? accentColor : SystemTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      rank['short'] as String,
+                      style: TextStyle(
+                        color: isCurrent ? const Color(0xFF070A0F) : (isUnlocked ? Colors.white : Colors.white24),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            rank['name'] as String,
+                            style: TextStyle(
+                              color: isCurrent ? accentColor : (isUnlocked ? Colors.white : Colors.white38),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            "${NumberFormat('#,###').format(minRr)} RR",
+                            style: TextStyle(
+                              color: isCurrent ? accentColor : Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        rank['desc'] as String,
+                        style: const TextStyle(color: Color(0xFF7E92A8), fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// SETTINGS SCREEN
+// ============================================================================
+class SettingsScreen extends StatefulWidget {
+  final Color accentColor;
+  final int initialUiColorOverride;
+  final ValueChanged<int> onColorChanged;
+  final VoidCallback onExport;
+  final VoidCallback onRestore;
+  final VoidCallback onReset;
+
+  const SettingsScreen({
+    super.key,
+    required this.accentColor,
+    required this.initialUiColorOverride,
+    required this.onColorChanged,
+    required this.onExport,
+    required this.onRestore,
+    required this.onReset,
+  });
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late int _currentColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentColor = widget.initialUiColorOverride;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: SystemTheme.background,
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("SYSTEM SETTINGS", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+        backgroundColor: SystemTheme.surface,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text("VISUAL THEME", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          SystemCard(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: HabitApp.themePalette.map((item) {
+                final Color c = item['color'] as Color;
+                final bool isSel = _currentColor == c.toARGB32();
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _currentColor = c.toARGB32());
+                    widget.onColorChanged(c.toARGB32());
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? c.withValues(alpha: 0.2) : SystemTheme.surfaceElevated,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isSel ? c : SystemTheme.border, width: isSel ? 1.5 : 1.0),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(width: 10, height: 10, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        Text(item['name'] as String, style: TextStyle(color: isSel ? c : Colors.white70, fontSize: 11, fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          const Text("DATA MANAGEMENT", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          SystemCard(
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.copy, color: SystemTheme.cyan),
+                  title: const Text("Export Backup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: const Text("Copy database state to clipboard", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11)),
+                  onTap: widget.onExport,
+                ),
+                const Divider(color: SystemTheme.border),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.download, color: SystemTheme.electricBlue),
+                  title: const Text("Restore Backup", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: const Text("Import JSON database snapshot", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11)),
+                  onTap: widget.onRestore,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          const Text("DANGER ZONE", style: TextStyle(color: SystemTheme.dangerRed, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          SystemCard(
+            borderColor: SystemTheme.dangerRed.withValues(alpha: 0.6),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.warning, color: SystemTheme.dangerRed),
+              title: const Text("Factory Reset System", style: TextStyle(color: SystemTheme.dangerRed, fontWeight: FontWeight.w800, fontSize: 14)),
+              subtitle: const Text("Erase all stats, disciplines, ratings, and directives", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 11)),
+              onTap: widget.onReset,
+            ),
+          ),
+        ],
       ),
     );
   }

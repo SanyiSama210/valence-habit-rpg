@@ -1,120 +1,124 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class ValencePalette {
-  static const Color bgCanvas = Color(0xFF131F24);
-  static const Color bgCard = Color(0xFF1B2B32);
-  static const Color bgRecessed = Color(0xFF101A1E);
-  static const Color borderLip = Color(0xFF2B3F48);
+class SystemTheme {
+  // Deep Void Canvas & Modern Elevated Surfaces
+  static const Color background = Color(0xFF070A0F);
+  static const Color surface = Color(0xFF0F151F);
+  static const Color surfaceElevated = Color(0xFF16202E);
+  static const Color border = Color(0xFF1F2D40);
+  static const Color borderSubtle = Color(0xFF141E2C);
 
-  static const Color green = Color(0xFF58CC02);
-  static const Color greenLip = Color(0xFF46A302);
+  // System Mana & Awakening Palette
+  static const Color cyan = Color(0xFF00E5FF);
+  static const Color electricBlue = Color(0xFF2979FF);
+  static const Color monarchGold = Color(0xFFFFB300);
+  static const Color shadowViolet = Color(0xFFA855F7);
+  static const Color dangerRed = Color(0xFFFF3366);
+  static const Color clearGreen = Color(0xFF00E676);
 
-  static const Color blue = Color(0xFF1CB0F6);
-  static const Color blueLip = Color(0xFF1185BC);
+  static TextStyle get titleStyle => const TextStyle(
+        color: Colors.white,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      );
 
-  static const Color gold = Color(0xFFFFC800);
-  static const Color goldLip = Color(0xFFD6A400);
+  static TextStyle get captionStyle => const TextStyle(
+        color: Color(0xFF7E92A8),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.4,
+      );
 
-  static const Color orange = Color(0xFFFF9600);
-  static const Color orangeLip = Color(0xFFCC7800);
-
-  static const Color red = Color(0xFFFF4B4B);
-  static const Color redLip = Color(0xFFCC3232);
-
-  static const Color purple = Color(0xFFCE82FF);
-  static const Color purpleLip = Color(0xFFA559D9);
-
-  static Color darkenLip(Color c) {
-    final hsl = HSLColor.fromColor(c);
-    return hsl.withLightness((hsl.lightness - 0.14).clamp(0.0, 1.0)).toColor();
-  }
+  static TextStyle get monoHeader => const TextStyle(
+        color: cyan,
+        fontSize: 11,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.4,
+        fontFamily: 'monospace',
+      );
 }
 
-class TactileCard extends StatelessWidget {
+class SystemCard extends StatelessWidget {
   final Widget child;
-  final Color bgColor;
   final Color borderColor;
-  final Color? lipColor;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
-  final double borderRadius;
   final VoidCallback? onTap;
 
-  const TactileCard({
+  const SystemCard({
     super.key,
     required this.child,
-    this.bgColor = ValencePalette.bgCard,
-    this.borderColor = ValencePalette.borderLip,
-    this.lipColor,
+    this.borderColor = SystemTheme.border,
     this.padding = const EdgeInsets.all(16),
     this.margin,
-    this.borderRadius = 20,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveLip = lipColor ?? borderColor;
-    final card = Container(
+    final container = Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: borderColor, width: 2),
+        color: SystemTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: effectiveLip,
+            color: Colors.black.withValues(alpha: 0.5),
             offset: const Offset(0, 4),
-            blurRadius: 0,
+            blurRadius: 12,
           ),
+          if (borderColor != SystemTheme.border)
+            BoxShadow(
+              color: borderColor.withValues(alpha: 0.12),
+              offset: const Offset(0, 0),
+              blurRadius: 10,
+            ),
         ],
       ),
       child: child,
     );
 
-    if (onTap == null) return card;
-    return GestureDetector(
+    if (onTap == null) return container;
+    return InkWell(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: card,
+      borderRadius: BorderRadius.circular(12),
+      child: container,
     );
   }
 }
 
-class TactileButton extends StatelessWidget {
+// Alias for add_task_screen compatibility
+typedef SystemWindow = SystemCard;
+
+class SystemButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final Color color;
-  final Color? textColor;
   final VoidCallback? onPressed;
   final EdgeInsetsGeometry padding;
   final double fontSize;
-  final double borderRadius;
 
-  const TactileButton({
+  const SystemButton({
     super.key,
     required this.label,
     this.icon,
-    this.color = ValencePalette.green,
-    this.textColor,
+    this.color = SystemTheme.cyan,
     required this.onPressed,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-    this.fontSize = 13,
-    this.borderRadius = 14,
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    this.fontSize = 11,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool enabled = onPressed != null;
-    final Color bg = enabled ? color : const Color(0xFF22343C);
-    final Color lip = enabled ? ValencePalette.darkenLip(color) : const Color(0xFF17242A);
-    final Color fg = enabled ? (textColor ?? const Color(0xFF0F191E)) : Colors.white30;
+    final bool active = onPressed != null;
+    final Color c = active ? color : Colors.white24;
 
     return GestureDetector(
-      onTap: enabled
+      onTap: active
           ? () {
               HapticFeedback.lightImpact();
               onPressed!();
@@ -123,31 +127,37 @@ class TactileButton extends StatelessWidget {
       child: Container(
         padding: padding,
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: lip,
-              offset: Offset(0, enabled ? 4 : 2),
-              blurRadius: 0,
-            ),
-          ],
+          color: active ? c.withValues(alpha: 0.12) : const Color(0xFF0A0F16),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? c.withValues(alpha: 0.75) : SystemTheme.border,
+            width: 1.0,
+          ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: c.withValues(alpha: 0.18),
+                    blurRadius: 8,
+                    offset: const Offset(0, 0),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, color: fg, size: fontSize + 3),
+              Icon(icon, color: c, size: fontSize + 3),
               const SizedBox(width: 6),
             ],
             Text(
-              label,
+              label.toUpperCase(),
               style: TextStyle(
-                color: fg,
+                color: c,
                 fontWeight: FontWeight.w900,
                 fontSize: fontSize,
-                letterSpacing: 0.4,
+                letterSpacing: 0.8,
               ),
             ),
           ],
@@ -157,18 +167,16 @@ class TactileButton extends StatelessWidget {
   }
 }
 
-class ShineProgressBar extends StatelessWidget {
+class SystemGauge extends StatelessWidget {
   final double value;
   final Color color;
   final double height;
-  final Color bgColor;
 
-  const ShineProgressBar({
+  const SystemGauge({
     super.key,
     required this.value,
     required this.color,
-    this.height = 14,
-    this.bgColor = ValencePalette.bgRecessed,
+    this.height = 6,
   });
 
   @override
@@ -177,36 +185,29 @@ class ShineProgressBar extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: bgColor,
+        color: SystemTheme.surfaceElevated,
         borderRadius: BorderRadius.circular(height),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final fillWidth = max(clamped > 0 ? height : 0.0, constraints.maxWidth * clamped);
           return Align(
             alignment: Alignment.centerLeft,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
+              duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
-              width: fillWidth,
+              width: constraints.maxWidth * clamped,
               height: height,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(height),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.6),
+                    blurRadius: 6,
+                    offset: const Offset(0, 0),
+                  ),
+                ],
               ),
-              child: fillWidth > 16
-                  ? Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        margin: EdgeInsets.only(top: height * 0.18, left: 6, right: 6),
-                        height: height * 0.26,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.28),
-                          borderRadius: BorderRadius.circular(height),
-                        ),
-                      ),
-                    )
-                  : null,
             ),
           );
         },

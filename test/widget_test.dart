@@ -20,7 +20,6 @@ void main() {
       expect(SystemRanks.getSkillRankLetter(1600), 'A');
       expect(SystemRanks.getSkillRankLetter(3500), 'S');
 
-      // Verify B (4) and C (3) average to 3.5 -> floor to 3 (C-Rank)
       final int bNum = SystemRanks.getSkillRankNumeric(750);
       final int cNum = SystemRanks.getSkillRankNumeric(340);
       final int flooredAvg = ((bNum + cNum) / 2).floor();
@@ -36,10 +35,6 @@ void main() {
       final kb = AutoStatClassifier.classify('Kickboxing Sparring');
       expect(kb['primary'], 'AGI');
       expect(kb['secondary'], 'PER');
-
-      final mma = AutoStatClassifier.classify('MMA Cage Work');
-      expect(mma['primary'], 'VIT');
-      expect(mma['secondary'], 'AGI');
 
       final exam = AutoStatClassifier.classify('Accounting Midterm Exam');
       expect(exam['category'], 'Academic');

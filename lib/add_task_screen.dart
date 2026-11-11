@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,12 +14,14 @@ class AddTaskScreen extends StatefulWidget {
   final DateTime? initialDate;
   final JsonList skills;
   final Color accentColor;
+  final JsonMap? existingTask;
 
   const AddTaskScreen({
     super.key,
     this.initialDate,
     required this.skills,
     required this.accentColor,
+    this.existingTask,
   });
 
   @override
@@ -42,6 +45,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   int _selectedSkillId = -1;
 
   String _recurrenceType = 'weekly';
+  int _customIntervalValue = 3;
+  String _customIntervalUnit = 'days'; // days, weeks, months
+
   bool _isBossEncounter = false;
   int _bossStake = 400;
 
@@ -67,7 +73,47 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     _questDate = DateTime(init.year, init.month, init.day);
     _recurrenceStart = _questDate;
 
-    if (widget.initialDate != null) {
+    if (widget.existingTask != null) {
+      final t = widget.existingTask!;
+      _titleController.text = t['title'] as String? ?? '';
+      _descriptionController.text = t['description'] as String? ?? '';
+      _selectedCategory = t['category'] as String? ?? 'Academic';
+      _primaryStat = t['primary_stat'] as String? ?? 'INT';
+      _secondaryStat = t['secondary_stat'] as String? ?? 'PER';
+      _selectedSkillId = t['skill_id'] as int? ?? -1;
+      
+      final rec = t['recurrence_type'] as String? ?? 'weekly';
+      if (rec.startsWith('custom:')) {
+        _recurrenceType = 'custom';
+        final parts = rec.replaceFirst('custom:', '').split('_');
+        if (parts.length == 2) {
+          _customIntervalValue = int.tryParse(parts[0]) ?? 3;
+          _customIntervalUnit = parts[1];
+        }
+      } else {
+        _recurrenceType = rec;
+      }
+
+      _isBossEncounter = (t['is_boss'] as int? ?? 0) == 1;
+      _bossStake = t['boss_stake'] as int? ?? 400;
+      _requireGps = (t['require_gps'] as int? ?? 1) == 1;
+      _radiusMeters = (t['radius_meters'] as num?)?.toDouble() ?? 150.0;
+      startTime = TimeOfDay(hour: t['start_hour'] as int? ?? 8, minute: t['start_minute'] as int? ?? 0);
+      endTime = TimeOfDay(hour: t['end_hour'] as int? ?? 10, minute: t['end_minute'] as int? ?? 0);
+      final double lat = (t['target_lat'] as num?)?.toDouble() ?? 0.0;
+      final double lng = (t['target_lng'] as num?)?.toDouble() ?? 0.0;
+      if (lat != 0.0 && lng != 0.0) {
+        _selectedLatLng = LatLng(lat, lng);
+      }
+      final String leadsStr = (t['notify_leads'] as String?) ?? '15';
+      _selectedLeadTimes.clear();
+      _selectedLeadTimes.addAll(
+        leadsStr.split(',').map((e) => int.tryParse(e.trim())).whereType<int>(),
+      );
+      if (_selectedLeadTimes.isEmpty) _selectedLeadTimes.add(15);
+      _notifyEnabled = (t['notify_enabled'] as int? ?? 1) == 1;
+      _manualStatOverride = true;
+    } else if (widget.initialDate != null) {
       selectedDays.clear();
       selectedDays.add(widget.initialDate!.weekday);
     }
@@ -147,6 +193,178 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
+  void _showCustomRecurrenceDialog() {
+    HapticFeedback.selectionClick();
+    int tempValue = _customIntervalValue;
+    String tempUnit = _customIntervalUnit;
+    final ctrl = TextEditingController(text: tempValue.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          return AlertDialog(
+            backgroundColor: SystemTheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: SystemTheme.border)),
+            title: const Text("CUSTOM REPETITION INTERVAL", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Repeat every:", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 70,
+                      child: TextField(
+                        controller: ctrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: SystemTheme.surfaceElevated,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                        onChanged: (val) {
+                          tempValue = int.tryParse(val) ?? tempValue;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        value: tempUnit,
+                        dropdownColor: SystemTheme.surfaceElevated,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                        items: const [
+                          DropdownMenuItem(value: 'days', child: Text("Days")),
+                          DropdownMenuItem(value: 'weeks', child: Text("Weeks")),
+                          DropdownMenuItem(value: 'months', child: Text("Months")),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setDlgState(() => tempUnit = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.white38))),
+              SystemButton(
+                label: "CONFIRM",
+                color: widget.accentColor,
+                onPressed: () {
+                  setState(() {
+                    _customIntervalValue = max(1, tempValue);
+                    _customIntervalUnit = tempUnit;
+                    _recurrenceType = 'custom';
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showCustomLeadTimeDialog() {
+    HapticFeedback.selectionClick();
+    int tempValue = 3;
+    String tempUnit = 'hours'; // minutes, hours, days, weeks
+    final ctrl = TextEditingController(text: tempValue.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          return AlertDialog(
+            backgroundColor: SystemTheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: SystemTheme.border)),
+            title: const Text("CUSTOM NOTIFICATION TIMING", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Notify prior to commencement:", style: TextStyle(color: Color(0xFF7E92A8), fontSize: 12)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 70,
+                      child: TextField(
+                        controller: ctrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: SystemTheme.surfaceElevated,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                        onChanged: (val) {
+                          tempValue = int.tryParse(val) ?? tempValue;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        value: tempUnit,
+                        dropdownColor: SystemTheme.surfaceElevated,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                        items: const [
+                          DropdownMenuItem(value: 'minutes', child: Text("Minutes")),
+                          DropdownMenuItem(value: 'hours', child: Text("Hours")),
+                          DropdownMenuItem(value: 'days', child: Text("Days")),
+                          DropdownMenuItem(value: 'weeks', child: Text("Weeks")),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setDlgState(() => tempUnit = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.white38))),
+              SystemButton(
+                label: "ADD REMINDER",
+                color: widget.accentColor,
+                onPressed: () {
+                  int calculatedMinutes = tempValue;
+                  if (tempUnit == 'hours') calculatedMinutes = tempValue * 60;
+                  if (tempUnit == 'days') calculatedMinutes = tempValue * 1440;
+                  if (tempUnit == 'weeks') calculatedMinutes = tempValue * 10080;
+
+                  setState(() {
+                    _selectedLeadTimes.add(max(1, calculatedMinutes));
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatLeadMinutes(int mins) {
+    if (mins >= 10080 && mins % 10080 == 0) return '${mins ~/ 10080}w';
+    if (mins >= 1440 && mins % 1440 == 0) return '${mins ~/ 1440}d';
+    if (mins >= 60 && mins % 60 == 0) return '${mins ~/ 60}h';
+    if (mins >= 60) return '${mins ~/ 60}h ${mins % 60}m';
+    return '${mins}m';
+  }
+
   Future<void> _centerMapOnCurrentLocation() async {
     setState(() => _fetchingLocation = true);
     try {
@@ -172,6 +390,16 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
+  Future<void> _deleteExistingQuest() async {
+    if (widget.existingTask == null) return;
+    final id = widget.existingTask!['id'] as int;
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'habits.db');
+    final db = await openDatabase(path);
+    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+    if (mounted) Navigator.pop(context, true);
+  }
+
   Future<void> _saveTask() async {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
@@ -180,12 +408,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final df = DateFormat('yyyy-MM-dd');
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a quest title.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Directive title required.')));
       return;
     }
 
     if ((_recurrenceType == 'weekly' || _recurrenceType == 'biweekly') && selectedDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one day.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one active day.')));
       return;
     }
 
@@ -196,6 +424,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     String repeatDaysStr = '1,2,3,4,5,6,7';
     String? startStr;
     String? endStr;
+    String finalRecurrenceType = _recurrenceType;
 
     if (_recurrenceType == 'once') {
       startStr = df.format(_questDate);
@@ -209,6 +438,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       repeatDaysStr = (selectedDays.toList()..sort()).join(',');
       startStr = df.format(_recurrenceStart ?? _questDate);
       endStr = _recurrenceEnd != null ? df.format(_recurrenceEnd!) : null;
+    } else if (_recurrenceType == 'custom') {
+      finalRecurrenceType = 'custom:${_customIntervalValue}_$_customIntervalUnit';
+      startStr = df.format(_recurrenceStart ?? _questDate);
+      endStr = _recurrenceEnd != null ? df.format(_recurrenceEnd!) : null;
+      repeatDaysStr = '1,2,3,4,5,6,7';
     } else {
       repeatDaysStr = (selectedDays.toList()..sort()).join(',');
       startStr = _recurrenceStart != null ? df.format(_recurrenceStart!) : null;
@@ -217,7 +451,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
     final leadsStr = (_selectedLeadTimes.toList()..sort()).join(',');
 
-    await db.insert('tasks', {
+    final payload = {
       'title': title,
       'category': _selectedCategory,
       'description': description,
@@ -230,23 +464,29 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       'target_lng': lng,
       'radius_meters': _radiusMeters,
       'repeat_days': repeatDaysStr,
-      'last_completed_date': null,
-      'is_completed': 0,
       'recurrence_start_date': startStr,
       'recurrence_end_date': endStr,
-      'recurrence_type': _recurrenceType,
+      'recurrence_type': finalRecurrenceType,
       'notify_enabled': _notifyEnabled ? 1 : 0,
       'notify_leads': leadsStr.isEmpty ? "15" : leadsStr,
       'require_gps': _requireGps ? 1 : 0,
-      'excluded_dates': '',
-      'penalty_applied_date': '',
       'is_boss': _isBossEncounter ? 1 : 0,
       'boss_stake': _bossStake,
-      'prep_stacks': 0,
       'primary_stat': _primaryStat,
       'secondary_stat': _secondaryStat,
       'skill_id': _selectedSkillId,
-    });
+    };
+
+    if (widget.existingTask != null) {
+      await db.update('tasks', payload, where: 'id = ?', whereArgs: [widget.existingTask!['id']]);
+    } else {
+      payload['last_completed_date'] = null;
+      payload['is_completed'] = 0;
+      payload['excluded_dates'] = '';
+      payload['penalty_applied_date'] = '';
+      payload['prep_stacks'] = 0;
+      await db.insert('tasks', payload);
+    }
 
     if (mounted) Navigator.pop(context, true);
   }
@@ -255,83 +495,98 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   Widget build(BuildContext context) {
     final df = DateFormat('yyyy-MM-dd');
     final accent = widget.accentColor;
+    final isEditing = widget.existingTask != null;
 
     return Scaffold(
-      backgroundColor: ValencePalette.bgCanvas,
+      backgroundColor: SystemTheme.background,
       appBar: AppBar(
-        title: const Text('CREATE QUEST', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
-        backgroundColor: ValencePalette.bgCard,
+        centerTitle: true,
+        title: Text(
+          isEditing ? 'EDIT DIRECTIVE' : 'REGISTER DIRECTIVE',
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+        ),
+        actions: [
+          if (isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: SystemTheme.dangerRed),
+              onPressed: _deleteExistingQuest,
+            ),
+        ],
+        backgroundColor: SystemTheme.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TactileCard(
+            SystemCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextField(
                     controller: _titleController,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                     decoration: InputDecoration(
-                      labelText: 'Quest Title (e.g. BJJ Sparring, Accounting Seminar)',
-                      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                      labelText: 'Directive Title',
+                      labelStyle: SystemTheme.captionStyle,
                       filled: true,
-                      fillColor: ValencePalette.bgRecessed,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      fillColor: SystemTheme.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _descriptionController,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                     decoration: InputDecoration(
-                      labelText: 'Room / Gym / Notes (Optional)',
-                      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                      labelText: 'Location / Notes (Optional)',
+                      labelStyle: SystemTheme.captionStyle,
                       filled: true,
-                      fillColor: ValencePalette.bgRecessed,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      fillColor: SystemTheme.surfaceElevated,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('CATEGORY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w900)),
+                  Text('DISCIPLINE SECTOR', style: SystemTheme.captionStyle),
                   const SizedBox(height: 6),
-                  Row(
+                  Wrap(
+                    spacing: 6,
                     children: _categories.map((cat) {
                       final isSelected = _selectedCategory == cat;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(cat),
-                          selected: isSelected,
-                          showCheckmark: false,
-                          onSelected: (_) => setState(() => _selectedCategory = cat),
-                          selectedColor: accent,
-                          backgroundColor: ValencePalette.bgRecessed,
-                          labelStyle: TextStyle(color: isSelected ? const Color(0xFF0F191E) : Colors.white70, fontWeight: FontWeight.w900, fontSize: 12),
+                      return ChoiceChip(
+                        label: Text(cat.toUpperCase()),
+                        selected: isSelected,
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => _selectedCategory = cat),
+                        selectedColor: accent.withValues(alpha: 0.16),
+                        backgroundColor: SystemTheme.surfaceElevated,
+                        side: BorderSide(color: isSelected ? accent : SystemTheme.border, width: 1.0),
+                        labelStyle: TextStyle(
+                          color: isSelected ? accent : Colors.white70,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
                         ),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  const Text('LINKED SKILL (OPTIONAL)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w900)),
+                  Text('LINKED SPECIALIZATION', style: SystemTheme.captionStyle),
                   DropdownButton<int>(
                     value: _selectedSkillId,
-                    dropdownColor: ValencePalette.bgCard,
+                    dropdownColor: SystemTheme.surface,
                     isExpanded: true,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
                     items: [
                       const DropdownMenuItem<int>(
                         value: -1,
-                        child: Text("None — Stat-Only Quest", style: TextStyle(color: Colors.white70)),
+                        child: Text("None (Direct Stat Only)", style: TextStyle(color: Colors.white38)),
                       ),
                       ...widget.skills.map((s) {
                         final letter = SystemRanks.getSkillRankLetter((s['mastery_xp'] as int?) ?? 0);
                         return DropdownMenuItem<int>(
                           value: s['id'] as int,
-                          child: Text("${s['name']} ($letter-Rank · ${s['category']})"),
+                          child: Text("${s['name']} ($letter-Rank)"),
                         );
                       }),
                     ],
@@ -350,30 +605,39 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('TARGET ATTRIBUTES', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w900)),
+                      Text('ATTRIBUTES TARGETED', style: SystemTheme.captionStyle),
                       Text(
-                        _manualStatOverride ? 'Manual / Skill Sync' : '✨ Auto-Detected',
-                        style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900),
+                        _manualStatOverride ? '[ MANUAL ]' : '[ AUTO DETECTED ]',
+                        style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w800, fontFamily: 'monospace'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Wrap(
-                    spacing: 8,
+                    spacing: 6,
                     children: ['STR', 'VIT', 'INT', 'PER', 'AGI'].map((stat) {
                       final isPrimary = _primaryStat == stat;
                       final isSecondary = _secondaryStat == stat;
+                      final bool isSelected = isPrimary || isSecondary;
                       return ChoiceChip(
                         label: Text(isPrimary ? "$stat (1°)" : (isSecondary ? "$stat (2°)" : stat)),
-                        selected: isPrimary || isSecondary,
+                        selected: isSelected,
                         showCheckmark: false,
-                        selectedColor: isPrimary ? accent : accent.withValues(alpha: 0.4),
-                        backgroundColor: ValencePalette.bgRecessed,
-                        labelStyle: TextStyle(color: isPrimary ? const Color(0xFF0F191E) : Colors.white, fontWeight: FontWeight.w900, fontSize: 11),
+                        selectedColor: accent.withValues(alpha: 0.16),
+                        backgroundColor: SystemTheme.surfaceElevated,
+                        side: BorderSide(
+                          color: isPrimary ? accent : (isSecondary ? accent.withValues(alpha: 0.5) : SystemTheme.border),
+                          width: 1.0,
+                        ),
+                        labelStyle: TextStyle(
+                          color: isPrimary ? accent : (isSecondary ? Colors.white : Colors.white70),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                        ),
                         onSelected: (_) {
                           setState(() {
                             _manualStatOverride = true;
@@ -389,96 +653,138 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            TactileCard(
+            SystemCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('TIME & SCHEDULE', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 12),
+                  Text('TIMELINE & RECURRENCE', style: SystemTheme.captionStyle),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
+                        child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: ValencePalette.borderLip, width: 2),
-                            backgroundColor: ValencePalette.bgRecessed,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: SystemTheme.border),
+                            backgroundColor: SystemTheme.surfaceElevated,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           ),
                           onPressed: _pickStartTime,
-                          icon: Icon(Icons.access_time_rounded, color: accent, size: 18),
-                          label: Text('Start: ${startTime.format(context)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                          child: Text('Start: ${startTime.format(context)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: OutlinedButton.icon(
+                        child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: ValencePalette.borderLip, width: 2),
-                            backgroundColor: ValencePalette.bgRecessed,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: SystemTheme.border),
+                            backgroundColor: SystemTheme.surfaceElevated,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           ),
                           onPressed: _pickEndTime,
-                          icon: Icon(Icons.access_time_filled_rounded, color: accent, size: 18),
-                          label: Text('End: ${endTime.format(context)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                          child: Text('End: ${endTime.format(context)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        {'id': 'once', 'label': 'One-Time'},
-                        {'id': 'weekly', 'label': 'Weekly'},
-                        {'id': 'biweekly', 'label': 'Every 2 Weeks'},
-                        {'id': 'monthly', 'label': 'Monthly'},
+                        {'id': 'once', 'label': 'ONE-TIME'},
+                        {'id': 'weekly', 'label': 'WEEKLY'},
+                        {'id': 'biweekly', 'label': 'BI-WEEKLY'},
+                        {'id': 'monthly', 'label': 'MONTHLY'},
+                        {
+                          'id': 'custom',
+                          'label': _recurrenceType == 'custom'
+                              ? 'EVERY $_customIntervalValue ${_customIntervalUnit.toUpperCase()}'
+                              : 'CUSTOM...'
+                        },
                       ].map((item) {
                         final isSelected = _recurrenceType == item['id'];
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
+                          padding: const EdgeInsets.only(right: 6.0),
                           child: ChoiceChip(
                             label: Text(item['label']!),
                             selected: isSelected,
                             showCheckmark: false,
-                            onSelected: (_) => setState(() => _recurrenceType = item['id']!),
-                            selectedColor: accent,
-                            backgroundColor: ValencePalette.bgRecessed,
-                            labelStyle: TextStyle(color: isSelected ? const Color(0xFF0F191E) : Colors.white70, fontWeight: FontWeight.w900, fontSize: 12),
+                            onSelected: (_) {
+                              if (item['id'] == 'custom') {
+                                _showCustomRecurrenceDialog();
+                              } else {
+                                setState(() => _recurrenceType = item['id']!);
+                              }
+                            },
+                            selectedColor: accent.withValues(alpha: 0.16),
+                            backgroundColor: SystemTheme.surfaceElevated,
+                            side: BorderSide(color: isSelected ? accent : SystemTheme.border),
+                            labelStyle: TextStyle(
+                              color: isSelected ? accent : Colors.white70,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
                           ),
                         );
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   if (_recurrenceType == 'once' || _recurrenceType == 'monthly')
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton.icon(
+                      child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: ValencePalette.borderLip, width: 2),
-                          backgroundColor: ValencePalette.bgRecessed,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: SystemTheme.border),
+                          backgroundColor: SystemTheme.surfaceElevated,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                         onPressed: _pickSingleDate,
-                        icon: Icon(Icons.event_rounded, color: accent, size: 18),
-                        label: Text(
+                        child: Text(
                           _recurrenceType == 'once'
-                              ? DateFormat('EEEE, MMM d, yyyy').format(_questDate)
-                              : 'Starts ${df.format(_questDate)} (Day ${_questDate.day} monthly)',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                              ? DateFormat('EEEE, MMM d, yyyy').format(_questDate).toUpperCase()
+                              : 'STARTS ${df.format(_questDate)} (DAY ${_questDate.day} MONTHLY)',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
                         ),
                       ),
                     )
-                  else ...[
+                  else if (_recurrenceType == 'custom') ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: SystemTheme.border),
+                              backgroundColor: SystemTheme.surfaceElevated,
+                            ),
+                            onPressed: () => _pickRecurrenceDate(true),
+                            child: Text(_recurrenceStart == null ? 'From: Today' : 'From: ${df.format(_recurrenceStart!)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: SystemTheme.border),
+                              backgroundColor: SystemTheme.surfaceElevated,
+                            ),
+                            onPressed: () => _pickRecurrenceDate(false),
+                            child: Text(_recurrenceEnd == null ? 'To: Ongoing' : 'To: ${df.format(_recurrenceEnd!)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: List.generate(7, (index) {
@@ -495,35 +801,49 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                             });
                           },
                           child: Container(
-                            width: 38,
-                            height: 38,
+                            width: 36,
+                            height: 36,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: isSelected ? accent : ValencePalette.bgRecessed,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: isSelected ? accent : ValencePalette.borderLip, width: 2),
+                              color: isSelected ? accent.withValues(alpha: 0.16) : SystemTheme.surfaceElevated,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: isSelected ? accent : SystemTheme.border, width: 1.0),
                             ),
-                            child: Text(dayLabels[index], style: TextStyle(color: isSelected ? const Color(0xFF0F191E) : Colors.white70, fontWeight: FontWeight.w900)),
+                            child: Text(
+                              dayLabels[index],
+                              style: TextStyle(
+                                color: isSelected ? accent : Colors.white70,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
                         );
                       }),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: ValencePalette.borderLip), backgroundColor: ValencePalette.bgRecessed),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: SystemTheme.border),
+                              backgroundColor: SystemTheme.surfaceElevated,
+                            ),
                             onPressed: () => _pickRecurrenceDate(true),
-                            child: Text(_recurrenceStart == null ? 'From: Any' : 'From: ${df.format(_recurrenceStart!)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                            child: Text(_recurrenceStart == null ? 'From: Any' : 'From: ${df.format(_recurrenceStart!)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: ValencePalette.borderLip), backgroundColor: ValencePalette.bgRecessed),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: SystemTheme.border),
+                              backgroundColor: SystemTheme.surfaceElevated,
+                            ),
                             onPressed: () => _pickRecurrenceDate(false),
-                            child: Text(_recurrenceEnd == null ? 'To: Ongoing' : 'To: ${df.format(_recurrenceEnd!)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                            child: Text(_recurrenceEnd == null ? 'To: Ongoing' : 'To: ${df.format(_recurrenceEnd!)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                           ),
                         ),
                       ],
@@ -532,9 +852,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            TactileCard(
+            // Advance Notification Timers
+            SystemCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -543,9 +864,78 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.location_on_rounded, color: ValencePalette.blue, size: 20),
+                          Icon(Icons.notifications_active_outlined, color: SystemTheme.cyan, size: 16),
                           SizedBox(width: 8),
-                          Text('Require GPS Geofence', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                          Text('ADVANCE REMINDERS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                        ],
+                      ),
+                      Switch(
+                        value: _notifyEnabled,
+                        activeThumbColor: accent,
+                        onChanged: (val) => setState(() => _notifyEnabled = val),
+                      ),
+                    ],
+                  ),
+                  if (_notifyEnabled) ...[
+                    const SizedBox(height: 8),
+                    Text('LEAD TIME PRIOR TO COMMENCEMENT', style: SystemTheme.captionStyle),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ...{10, 15, 30, 60, 1440, ..._selectedLeadTimes}.map((mins) {
+                          final bool isSel = _selectedLeadTimes.contains(mins);
+                          return ChoiceChip(
+                            label: Text(_formatLeadMinutes(mins)),
+                            selected: isSel,
+                            showCheckmark: false,
+                            selectedColor: accent.withValues(alpha: 0.16),
+                            backgroundColor: SystemTheme.surfaceElevated,
+                            side: BorderSide(color: isSel ? accent : SystemTheme.border, width: 1.0),
+                            labelStyle: TextStyle(
+                              color: isSel ? accent : Colors.white70,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedLeadTimes.add(mins);
+                                } else if (_selectedLeadTimes.length > 1) {
+                                  _selectedLeadTimes.remove(mins);
+                                }
+                              });
+                            },
+                          );
+                        }),
+                        ActionChip(
+                          avatar: const Icon(Icons.add, color: SystemTheme.cyan, size: 14),
+                          label: const Text("CUSTOM", style: TextStyle(color: SystemTheme.cyan, fontSize: 10, fontWeight: FontWeight.w900)),
+                          backgroundColor: SystemTheme.surfaceElevated,
+                          side: const BorderSide(color: SystemTheme.cyan, width: 0.8),
+                          onPressed: _showCustomLeadTimeDialog,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            SystemCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.gps_fixed, color: SystemTheme.cyan, size: 16),
+                          SizedBox(width: 8),
+                          Text('COORDINATE LOCK (GPS)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
                         ],
                       ),
                       Switch(value: _requireGps, activeThumbColor: accent, onChanged: (val) => setState(() => _requireGps = val)),
@@ -554,9 +944,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   if (_requireGps) ...[
                     const SizedBox(height: 8),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(6),
                       child: SizedBox(
-                        height: 190,
+                        height: 180,
                         child: Stack(
                           children: [
                             FlutterMap(
@@ -580,9 +970,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                       point: _selectedLatLng,
                                       radius: _radiusMeters,
                                       useRadiusInMeter: true,
-                                      color: accent.withValues(alpha: 0.24),
+                                      color: accent.withValues(alpha: 0.22),
                                       borderColor: accent,
-                                      borderStrokeWidth: 2,
+                                      borderStrokeWidth: 1.2,
                                     ),
                                   ],
                                 ),
@@ -590,25 +980,25 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                   markers: [
                                     Marker(
                                       point: _selectedLatLng,
-                                      width: 40,
-                                      height: 40,
-                                      child: Icon(Icons.location_pin, color: accent, size: 38),
+                                      width: 32,
+                                      height: 32,
+                                      child: Icon(Icons.location_pin, color: accent, size: 30),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
                             Positioned(
-                              top: 8,
-                              right: 8,
+                              top: 6,
+                              right: 6,
                               child: FloatingActionButton.small(
-                                heroTag: 'gps_center_btn',
-                                backgroundColor: ValencePalette.bgCard,
+                                heroTag: 'gps_sync_btn',
+                                backgroundColor: SystemTheme.surface,
                                 foregroundColor: accent,
                                 onPressed: _fetchingLocation ? null : _centerMapOnCurrentLocation,
                                 child: _fetchingLocation
-                                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                    : const Icon(Icons.my_location, size: 18),
+                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Icon(Icons.my_location_rounded, size: 16),
                               ),
                             ),
                           ],
@@ -619,8 +1009,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Radius', style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700)),
-                        Text('${_radiusMeters.toInt()} m', style: TextStyle(color: accent, fontWeight: FontWeight.w900, fontSize: 12)),
+                        Text('Radius Tolerance', style: SystemTheme.captionStyle),
+                        Text('${_radiusMeters.toInt()}m', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900)),
                       ],
                     ),
                     Slider(
@@ -629,24 +1019,24 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       max: 500,
                       divisions: 18,
                       activeColor: accent,
-                      inactiveColor: ValencePalette.bgRecessed,
+                      inactiveColor: SystemTheme.surfaceElevated,
                       onChanged: (val) => setState(() => _radiusMeters = val),
                     ),
                   ],
-                  const Divider(color: ValencePalette.borderLip),
+                  const Divider(color: SystemTheme.border),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.emoji_events_rounded, color: ValencePalette.gold, size: 20),
+                          Icon(Icons.warning_amber_rounded, color: SystemTheme.shadowViolet, size: 16),
                           SizedBox(width: 8),
-                          Text('Boss Challenge (50/50 Check)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                          Text('BOSS CHALLENGE GATE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
                         ],
                       ),
                       Switch(
                         value: _isBossEncounter,
-                        activeThumbColor: ValencePalette.gold,
+                        activeThumbColor: SystemTheme.shadowViolet,
                         onChanged: (val) {
                           setState(() {
                             _isBossEncounter = val;
@@ -660,8 +1050,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Stake Amount', style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700)),
-                        Text('±$_bossStake RR', style: const TextStyle(color: ValencePalette.gold, fontWeight: FontWeight.w900, fontSize: 12)),
+                        Text('Stake Amount', style: SystemTheme.captionStyle),
+                        Text('±$_bossStake RR', style: const TextStyle(color: SystemTheme.shadowViolet, fontWeight: FontWeight.w900, fontSize: 11)),
                       ],
                     ),
                     Slider(
@@ -669,60 +1059,23 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       min: 200,
                       max: 1000,
                       divisions: 8,
-                      activeColor: ValencePalette.gold,
-                      inactiveColor: ValencePalette.bgRecessed,
+                      activeColor: SystemTheme.shadowViolet,
+                      inactiveColor: SystemTheme.surfaceElevated,
                       onChanged: (val) => setState(() => _bossStake = val.round()),
                     ),
                   ],
-                  const Divider(color: ValencePalette.borderLip),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.notifications_active_rounded, color: ValencePalette.orange, size: 20),
-                          SizedBox(width: 8),
-                          Text('Advance Reminders', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-                        ],
-                      ),
-                      Switch(value: _notifyEnabled, activeThumbColor: accent, onChanged: (val) => setState(() => _notifyEnabled = val)),
-                    ],
-                  ),
-                  if (_notifyEnabled)
-                    Wrap(
-                      spacing: 8,
-                      children: [10, 15, 30, 60, 90].map((mins) {
-                        final isSel = _selectedLeadTimes.contains(mins);
-                        final label = mins >= 60 ? '${mins ~/ 60}h ${mins % 60 > 0 ? "${mins % 60}m" : ""}' : '${mins}m';
-                        return FilterChip(
-                          label: Text(label),
-                          selected: isSel,
-                          showCheckmark: false,
-                          selectedColor: accent,
-                          backgroundColor: ValencePalette.bgRecessed,
-                          labelStyle: TextStyle(color: isSel ? const Color(0xFF0F191E) : Colors.white70, fontWeight: FontWeight.w900, fontSize: 11),
-                          onSelected: (val) {
-                            setState(() {
-                              if (val) {
-                                _selectedLeadTimes.add(mins);
-                              } else if (_selectedLeadTimes.length > 1) {
-                                _selectedLeadTimes.remove(mins);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
                 ],
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
 
-            TactileButton(
-              label: _isBossEncounter ? 'SAVE BOSS CHALLENGE' : 'SAVE QUEST',
-              color: _isBossEncounter ? ValencePalette.gold : accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              fontSize: 15,
+            SystemButton(
+              label: isEditing
+                  ? 'UPDATE DIRECTIVE'
+                  : (_isBossEncounter ? 'OPEN GATE DIRECTIVE' : 'SUBMIT DIRECTIVE'),
+              color: _isBossEncounter ? SystemTheme.shadowViolet : accent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              fontSize: 12,
               onPressed: _saveTask,
             ),
             const SizedBox(height: 24),
